@@ -1,0 +1,305 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>今天必须吃到饭 · 详细设计</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* 布局：单列文档 + 吸顶章节导航；沿用六方向概念文档的视觉语言，强调色取方向 ① 的橙黄 */
+:root {
+  --bg: #f5f5f8; --surface: #ffffff; --card: #ffffff; --border: #e0e0ea;
+  --text: #1a1a2e; --muted: #6b6b88; --label: #a0a0b8;
+  --accent: #d98c0a; --accent-soft: rgba(245, 166, 35, .14);
+  --hunger: #e0742a; --face: #1f9e95; --danger: #d9534f; --good: #2e9e6a;
+  --c-excuse: #d98c0a; --c-social: #1f9e95; --c-item: #4a7bd0; --c-ultimate: #d4457c; --c-subject: #2e9e6a;
+  --font-display: 'Space Grotesk', 'Noto Sans SC', sans-serif;
+  --font-body: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f0f13; --surface: #18181f; --card: #1e1e28; --border: #2a2a38;
+    --text: #e8e8f0; --muted: #8e8eaa; --label: #5a5a78;
+    --accent: #f5a623; --accent-soft: rgba(245, 166, 35, .16);
+    --hunger: #f5a623; --face: #4ecdc4; --danger: #ff6b6b; --good: #34d399;
+    --c-excuse: #f5a623; --c-social: #4ecdc4; --c-item: #8fb3ff; --c-ultimate: #ff6b9d; --c-subject: #34d399;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f0f13; --surface: #18181f; --card: #1e1e28; --border: #2a2a38;
+  --text: #e8e8f0; --muted: #8e8eaa; --label: #5a5a78;
+  --accent: #f5a623; --accent-soft: rgba(245, 166, 35, .16);
+  --hunger: #f5a623; --face: #4ecdc4; --danger: #ff6b6b; --good: #34d399;
+  --c-excuse: #f5a623; --c-social: #4ecdc4; --c-item: #8fb3ff; --c-ultimate: #ff6b9d; --c-subject: #34d399;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 15px; line-height: 1.7;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.page { max-width: 880px; margin: 0 auto; padding-block: 40px 80px; }
+.eyebrow { font-family: var(--font-display); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+h1 { font-family: var(--font-display); font-size: clamp(24px, 5vw, 34px); font-weight: 700; text-wrap: balance; line-height: 1.2; }
+.sub { color: var(--muted); margin-top: 10px; font-size: 14px; max-width: 60ch; }
+.pitch { margin-top: 20px; padding: 18px 22px; background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; font-size: 15.5px; }
+.pitch strong { color: var(--accent); }
+.links { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); font-size: 13px; color: var(--text); text-decoration: none; }
+.chip:hover { border-color: var(--accent); }
+.chip.primary { background: var(--accent); border-color: var(--accent); color: #1b1208; font-weight: 600; }
+nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--border); margin: 32px 0 28px; display: flex; gap: 2px; overflow-x: auto; padding-block: 6px 0; }
+nav.toc a { white-space: nowrap; padding: 8px 12px; font-size: 13px; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; }
+nav.toc a:hover { color: var(--text); border-color: var(--accent); }
+section { margin-bottom: 40px; min-width: 0; }
+h2 { font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+h2::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+h3 { font-size: 15px; font-weight: 700; margin: 18px 0 8px; }
+p { max-width: 68ch; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.spec { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; min-width: 0; }
+.spec .k { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.spec .v { font-weight: 500; }
+.loop { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 14px; }
+.loop span { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 13px; font-weight: 500; }
+.loop i { color: var(--label); font-style: normal; }
+.block { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; color: var(--muted); font-size: 14px; }
+.block strong { color: var(--text); }
+.mech { display: flex; flex-direction: column; gap: 10px; }
+.mech > div { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; padding: 12px 16px; }
+.mech b { display: block; margin-bottom: 2px; }
+.mech small { color: var(--muted); font-size: 13.5px; }
+.tbl { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 520px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--surface); font-weight: 600; }
+td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; font-variant-numeric: tabular-nums; }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 500; }
+.num { text-align: right; }
+.tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 4px; font-weight: 600; letter-spacing: .04em; }
+.t-excuse { background: color-mix(in srgb, var(--c-excuse) 18%, transparent); color: var(--c-excuse); }
+.t-social { background: color-mix(in srgb, var(--c-social) 18%, transparent); color: var(--c-social); }
+.t-item { background: color-mix(in srgb, var(--c-item) 18%, transparent); color: var(--c-item); }
+.t-ultimate { background: color-mix(in srgb, var(--c-ultimate) 18%, transparent); color: var(--c-ultimate); }
+.t-subject { background: color-mix(in srgb, var(--c-subject) 18%, transparent); color: var(--c-subject); }
+.bands { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 10px 0; }
+.band { padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); }
+.band .r { font-family: var(--font-display); font-weight: 700; font-size: 15px; }
+.band.hi .r { color: var(--danger); } .band.ok .r { color: var(--good); } .band.lo .r { color: var(--accent); }
+.band small { color: var(--muted); font-size: 13px; display: block; }
+.budget { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; font-size: 13.5px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; max-width: 420px; }
+.budget b { text-align: right; font-variant-numeric: tabular-nums; }
+.budget .sum { border-top: 1px solid var(--border); padding-top: 6px; margin-top: 4px; }
+.budget .sum + b { border-top: 1px solid var(--border); padding-top: 6px; margin-top: 4px; }
+.map { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 10px 0 14px; }
+.act { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+.act .n { font-family: var(--font-display); font-weight: 700; }
+.act small { color: var(--muted); display: block; font-size: 12.5px; }
+.act .rows { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.act .rows span { display: flex; gap: 6px; }
+.act .rows span::before { content: '·'; color: var(--label); }
+ol.acc { padding-left: 1.3em; color: var(--muted); font-size: 14px; display: flex; flex-direction: column; gap: 6px; }
+ol.acc li::marker { color: var(--accent); font-weight: 700; }
+.status { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 4px; background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); font-weight: 600; margin-left: 6px; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+@media (max-width: 600px) { .map { grid-template-columns: 1fr; } }
+</style>
+
+<div class="page">
+  <header>
+    <div class="eyebrow">Project: Belly First · 详细设计 v0.1 · 2026-10-30</div>
+    <h1>《今天必须吃到饭》—— Roguelike 卡牌详细设计</h1>
+    <p class="sub">从《下班了，我要吃饭》六方向中选定方向 ①。本页是数值与规则定稿，与仓库 <code>docs/GDD.md</code> 同步；可玩原型按此实现。</p>
+    <div class="pitch">
+      每次下班是一局。在「公司 → 路上 → 到家」的分叉路图上选节点，遭遇 NPC 时出牌<strong>说服</strong>对方放你走。
+      <strong>饥饿值是时钟</strong>（归零即败），<strong>面子值是弹药</strong>（借口消耗面子），<strong>最后一口饭才算赢</strong>。
+    </div>
+    <div class="links">
+      <span class="chip">平台 · 手机竖屏 Web，后续移植微信小游戏</span>
+      <span class="chip">单局 · 8–15 分钟</span>
+      <span class="chip">开发难度 · 中等</span>
+      <span class="chip">v0.1 原型 · 纯前端，无构建步骤</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#loop">循环</a><a href="#res">资源</a><a href="#battle">遭遇</a><a href="#npc">NPC</a><a href="#cards">牌表</a><a href="#map">地图</a><a href="#events">事件</a><a href="#scope">范围</a><a href="#accept">验收</a>
+  </nav>
+
+  <section id="loop">
+    <h2>核心循环</h2>
+    <div class="loop"><span>选节点</span><i>→</i><span>进入节点（饥饿 −3）</span><i>→</i><span>遭遇：出牌回合制 / 事件：二选一 / 补给：三选一</span><i>→</i><span>胜利：三选一拿牌</span><i>→</i><span>回地图</span><i>→</i><span>家门 BOSS 三阶段</span><i>→</i><span>吃到了</span></div>
+    <div class="block">一局约 <strong>15 个节点</strong>、<strong>9 次遭遇</strong>、每次 3–5 回合。选路策略是第一层决策：避开精英还是冲奖励；出牌是第二层：这回合压粘性，还是先稳住面子。</div>
+  </section>
+
+  <section id="res">
+    <h2>资源系统</h2>
+    <div class="two">
+      <div>
+        <h3>🍚 饥饿值（0–100，开局 100）</h3>
+        <div class="tbl"><table>
+          <thead><tr><th>事件</th><th class="num">变化</th></tr></thead>
+          <tbody>
+            <tr><td>进入任意节点</td><td class="num">−3（吃零食后每次 +1）</td></tr>
+            <tr><td>遭遇中每回合结束</td><td class="num">−1</td></tr>
+            <tr><td>NPC「拖时间」意图</td><td class="num">−3 ~ −6</td></tr>
+            <tr><td>补给「吃零食」</td><td class="num">+20，衰减永久 +1</td></tr>
+            <tr><td>道具牌「零食」</td><td class="num">+8</td></tr>
+          </tbody>
+        </table></div>
+        <div class="bands">
+          <div class="band lo"><div class="r">&lt; 20 判断力下降</div><small>费用 ≥ 2 的牌与绝招不可打出</small></div>
+          <div class="band hi"><div class="r">= 0 局失败</div><small>「饿昏倒地，梦里吃到了」</small></div>
+        </div>
+        <h3>预算校验</h3>
+        <div class="budget">
+          <span>15 节点 × 3</span><b>−45</b>
+          <span>约 9 遭遇 × 4 回合</span><b>−36</b>
+          <span>拖时间意图合计</span><b>约 −25</b>
+          <span>补给 / 事件回复</span><b>+20 ~ +35</b>
+          <span class="sum">到家时剩余（不犯错）</span><b>15 ~ 30</b>
+        </div>
+        <p class="sub">把玩家逼进最后一幕的「判断力下降」区间是预期体验。贪心 AI 200 局模拟：胜局平均剩饥饿 40，最低 2。</p>
+      </div>
+      <div>
+        <h3>😎 面子值（0–100，开局 60）</h3>
+        <div class="bands">
+          <div class="band hi"><div class="r">&gt; 80 人缘太好</div><small>遭遇开始 NPC 粘性 ×1.2</small></div>
+          <div class="band ok"><div class="r">30–80 正常</div><small>无修正</small></div>
+          <div class="band lo"><div class="r">&lt; 30 没面子</div><small>NPC 粘性 ×1.25，借口牌费用 +1</small></div>
+        </div>
+        <div class="block">面子不判负，但两头都惩罚，<strong>需要动态维持在中段</strong>。来源：借口牌消耗 2–10；「夸一句」「深呼吸」回复；事件选项；击败精英 +5、击败老板 +10。NPC「追问」扣面子，用<strong>镇定</strong>抵挡。</div>
+        <h3>🃏 手牌与牌组</h3>
+        <div class="mech">
+          <div><b>开局 10 张，每回合 3 能量、抽 5</b><small>回合结束弃全部手牌；抽牌堆空时洗弃牌堆。</small></div>
+          <div><b>借口「用烂了」</b><small>同名借口牌全局用过 2 次后说服减半，牌面标「用烂了」。这是局内最重要的牌组压力：逼玩家多样化借口。</small></div>
+          <div><b>五种牌</b><small><span class="tag t-excuse">借口</span> 主输出，耗面子 · <span class="tag t-social">社交</span> 镇定 / 抽牌 / 干扰意图 · <span class="tag t-item">道具</span> 环境事件解药 · <span class="tag t-ultimate">绝招</span> 稀有爆发 · <span class="tag t-subject">学科</span> 老师专属临时牌</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="battle">
+    <h2>遭遇规则（回合制）</h2>
+    <div class="mech">
+      <div><b>粘性 = NPC 的 HP</b><small>归零即脱身。粘性受面子区间与精英修正。</small></div>
+      <div><b>意图公开</b><small>唠叨：粘性 +N（回血）· 拖时间：饥饿 −N · 追问：面子 −max(0, N − 镇定) · 提问（老师）：回合内未打出对应学科牌，面子 −8 · 加班（老板，疑心 ≥ 5）：面子 −15、粘性 +8、疑心清零</small></div>
+      <div><b>镇定</b><small>本回合累计，NPC 行动后清零。类似 Slay the Spire 的格挡，只挡「追问」。</small></div>
+      <div><b>回合流程</b><small>抽牌 → 出牌（能量限制）→ 结束回合 → NPC 行动 → 饥饿 −1 → 判负检查 → 下一回合。</small></div>
+    </div>
+  </section>
+
+  <section id="npc">
+    <h2>NPC 表</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>NPC</th><th>幕</th><th>定位</th><th class="num">粘性</th><th>意图循环</th><th>专属机制</th></tr></thead>
+      <tbody>
+        <tr><td>🧑‍💼 话多同事</td><td>1</td><td>普通</td><td class="num">18</td><td>唠叨 +4 → 拖时间 −4 → 追问 6</td><td>「拉人入局」对其说服 ×3</td></tr>
+        <tr><td>🧑‍🎓 实习生</td><td>1</td><td>普通</td><td class="num">12</td><td>请教（追问 4）→ 拖时间 −3</td><td>—</td></tr>
+        <tr><td>👔 老板</td><td>1 BOSS</td><td>精英</td><td class="num">36</td><td>「有个小事」拖时间 −6 → 追问 8 → 唠叨 +5</td><td><strong>疑心</strong>：每张借口牌 +1，≥5 触发「加班」。「汇报进展」对其说服 7、疑心 −3</td></tr>
+        <tr><td>📢 推销员</td><td>2</td><td>普通</td><td class="num">15</td><td>纠缠（唠叨 +3）→ 拖时间 −4</td><td>社交牌镇定减半</td></tr>
+        <tr><td>📚 老师</td><td>2</td><td>普通</td><td class="num">20</td><td>提问 → 唠叨 +3 → 追问 5</td><td>遭遇开始「发试卷」：3 张随机学科牌洗入抽牌堆</td></tr>
+        <tr><td>👵 邻居大妈</td><td>2 BOSS</td><td>精英</td><td class="num">30</td><td>唠叨 +6 → 追问 5 → 「介绍对象」追问 10</td><td>—</td></tr>
+        <tr><td>📦 快递员</td><td>3</td><td>普通</td><td class="num">10</td><td>拖时间 −3 → 追问 3</td><td>—</td></tr>
+        <tr><td>🛋️ 室友</td><td>3</td><td>普通</td><td class="num">15</td><td>唠叨 +4 → 拖时间 −3</td><td>—</td></tr>
+        <tr><td>🏠 家门 BOSS</td><td>3 BOSS</td><td>三阶段</td><td class="num">25 / 20 / 20</td><td>见下</td><td>接过家人电话 → 跳过阶段 2；挂电话 → 阶段 2 粘性 +10</td></tr>
+      </tbody>
+    </table></div>
+    <h3>家门 BOSS 三阶段</h3>
+    <div class="mech">
+      <div><b>① 饭还没好（25）</b><small>拖时间 −5 → 唠叨 +4。「再等十分钟！」</small></div>
+      <div><b>② 先把垃圾倒了（20）</b><small>追问 6 → 拖时间 −4。路上接过电话则家人说「知道你饿，先吃」，直接跳过。</small></div>
+      <div><b>③ 外卖迟到了（20）</b><small>拖时间 −6 → 唠叨 +5。三阶段全清 → <strong>「吃到了」</strong>。</small></div>
+    </div>
+  </section>
+
+  <section id="cards">
+    <h2>牌表（28 张）</h2>
+    <div class="block">开局牌组：家里有事 ×3、嗯嗯好的 ×3、看手机 ×2、我先走了 ×1、充电宝 ×1。奖励池权重：借口 45% · 社交 35% · 道具 15% · 绝招 5%；精英 / BOSS 奖励必含 1 张绝招。</div>
+    <div class="tbl"><table>
+      <thead><tr><th>牌</th><th>类型</th><th class="num">费</th><th>效果</th><th class="num">面子</th></tr></thead>
+      <tbody>
+        <tr><td>🏠 家里有事</td><td><span class="tag t-excuse">借口</span></td><td class="num">1</td><td>说服 6</td><td class="num">−3</td></tr>
+        <tr><td>🚪 我先走了</td><td><span class="tag t-excuse">借口</span></td><td class="num">2</td><td>说服 10</td><td class="num">−5</td></tr>
+        <tr><td>🚨 家有急事</td><td><span class="tag t-excuse">借口</span></td><td class="num">1</td><td>说服 8</td><td class="num">−4</td></tr>
+        <tr><td>🤢 胃疼</td><td><span class="tag t-excuse">借口</span></td><td class="num">1</td><td>说服 7</td><td class="num">−2</td></tr>
+        <tr><td>🩺 约了医生</td><td><span class="tag t-excuse">借口</span></td><td class="num">2</td><td>说服 14</td><td class="num">−6</td></tr>
+        <tr><td>📱 我妈打电话</td><td><span class="tag t-excuse">借口</span></td><td class="num">1</td><td>说服 5，NPC 本回合意图失效</td><td class="num">−3</td></tr>
+        <tr><td>📅 明天再说</td><td><span class="tag t-excuse">借口</span></td><td class="num">1</td><td>说服 6，抽 1</td><td class="num">−3</td></tr>
+        <tr><td>📊 汇报进展</td><td><span class="tag t-excuse">借口</span></td><td class="num">1</td><td>说服 3；对老板说服 7 且疑心 −3</td><td class="num">0</td></tr>
+        <tr><td>🙉 装作没听见</td><td><span class="tag t-excuse">借口</span></td><td class="num">1</td><td>镇定 8，说服 2</td><td class="num">−2</td></tr>
+        <tr><td>👌 嗯嗯好的</td><td><span class="tag t-social">社交</span></td><td class="num">1</td><td>镇定 5</td><td class="num">0</td></tr>
+        <tr><td>📲 看手机</td><td><span class="tag t-social">社交</span></td><td class="num">1</td><td>镇定 3，抽 1</td><td class="num">0</td></tr>
+        <tr><td>🙂 微笑点头</td><td><span class="tag t-social">社交</span></td><td class="num">0</td><td>镇定 4</td><td class="num">0</td></tr>
+        <tr><td>🌬️ 深呼吸</td><td><span class="tag t-social">社交</span></td><td class="num">1</td><td>镇定 6</td><td class="num">+2</td></tr>
+        <tr><td>↪️ 转移话题</td><td><span class="tag t-social">社交</span></td><td class="num">1</td><td>NPC 本回合意图失效</td><td class="num">0</td></tr>
+        <tr><td>👏 夸一句</td><td><span class="tag t-social">社交</span></td><td class="num">1</td><td>说服 3</td><td class="num">+5</td></tr>
+        <tr><td>💻 假装忙</td><td><span class="tag t-social">社交</span></td><td class="num">2</td><td>镇定 12</td><td class="num">0</td></tr>
+        <tr><td>🧨 拉人入局</td><td><span class="tag t-social">社交</span></td><td class="num">1</td><td>说服 5；对话多同事说服 15</td><td class="num">−1</td></tr>
+        <tr><td>🎧 耳机</td><td><span class="tag t-item">道具</span></td><td class="num">1</td><td>镇定 7，下回合多抽 1</td><td class="num">0</td></tr>
+        <tr><td>🔋 充电宝</td><td><span class="tag t-item">道具</span></td><td class="num">0</td><td>说服 3；事件「手机没电」免罚</td><td class="num">0</td></tr>
+        <tr><td>☂️ 雨伞</td><td><span class="tag t-item">道具</span></td><td class="num">0</td><td>说服 2；事件「暴雨」免罚</td><td class="num">0</td></tr>
+        <tr><td>🚲 共享单车券</td><td><span class="tag t-item">道具</span></td><td class="num">1</td><td>说服 3；事件「地铁延误」免罚</td><td class="num">0</td></tr>
+        <tr><td>🍫 零食</td><td><span class="tag t-item">道具</span></td><td class="num">0</td><td>饥饿 +8，用后从牌组移除</td><td class="num">0</td></tr>
+        <tr><td>😤 厚脸皮 ★</td><td><span class="tag t-ultimate">绝招</span></td><td class="num">2</td><td>说服 20</td><td class="num">−10</td></tr>
+        <tr><td>🎭 演技爆发 ★</td><td><span class="tag t-ultimate">绝招</span></td><td class="num">3</td><td>说服 30</td><td class="num">−8</td></tr>
+        <tr><td>🗿 死装 ★</td><td><span class="tag t-ultimate">绝招</span></td><td class="num">2</td><td>镇定 99，说服 10</td><td class="num">−4</td></tr>
+        <tr><td>➗📖🔤 数学 / 语文 / 英语</td><td><span class="tag t-subject">学科</span></td><td class="num">0</td><td>说服 4；答中老师提问说服 12、面子 +3</td><td class="num">0</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="map">
+    <h2>地图</h2>
+    <div class="map">
+      <div class="act"><div class="n">第 1 幕 · 公司</div><small>6 层 · BOSS 老板</small><div class="rows"><span>第 1 层固定普通遭遇</span><span>第 5 层保证补给</span><span>其余随机</span></div></div>
+      <div class="act"><div class="n">第 2 幕 · 路上</div><small>6 层 · BOSS 邻居大妈</small><div class="rows"><span>环境事件集中在此</span><span>家人来电影响终局</span><span>老师发试卷</span></div></div>
+      <div class="act"><div class="n">第 3 幕 · 到家</div><small>3 层 · 家门 BOSS 三阶段</small><div class="rows"><span>短而密</span><span>第 2 层保证补给</span><span>最后一口才算赢</span></div></div>
+    </div>
+    <div class="block">每层 2–3 个节点，节点连向下一层列号相差 ≤ 1 的节点，每个节点至少一进一出。随机节点权重：<strong>遭遇 50% · 事件 30% · 补给 15% · 精英 5%</strong>（精英 = 同幕普通 NPC 粘性 ×1.5，奖励必含绝招）。节点类型提前可见，NPC 身份不可见。</div>
+    <h3>补给节点（三选一）</h3>
+    <div class="block"><strong>吃零食</strong>：饥饿 +20，基础衰减永久 +1 · <strong>删一张牌</strong> · <strong>整理心情</strong>：面子 +10</div>
+  </section>
+
+  <section id="events">
+    <h2>事件表（10 个）</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>幕</th><th>事件</th><th>选项 A</th><th>选项 B</th><th>选项 C</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>☕ 茶水间八卦</td><td>听一耳朵：面子 +8，饥饿 −5</td><td>装没听见：无</td><td></td></tr>
+        <tr><td>1</td><td>🛗 电梯满了</td><td>等下一趟：饥饿 −6</td><td>走楼梯：饥饿 −3，得「深呼吸」</td><td></td></tr>
+        <tr><td>1</td><td>🍪 同事递零食</td><td>接过来：饥饿 +10，面子 −3</td><td>婉拒：面子 +3</td><td></td></tr>
+        <tr><td>2</td><td>🚇 地铁延误</td><td>有「共享单车券」：消耗，免罚</td><td>硬等：饥饿 −12</td><td>蹭同事车：面子 −10</td></tr>
+        <tr><td>2</td><td>🌧️ 突降暴雨</td><td>有「雨伞」：消耗，免罚</td><td>淋雨冲：饥饿 −8</td><td>蹭伞：面子 −5</td></tr>
+        <tr><td>2</td><td>📞 家人来电</td><td>接：饥饿 −6，家门 BOSS 跳过阶段 2</td><td>挂：无，阶段 2 粘性 +10</td><td></td></tr>
+        <tr><td>2</td><td>🏪 便利店</td><td>进去：饥饿 +15，衰减 +1</td><td>路过：无</td><td></td></tr>
+        <tr><td>2</td><td>🪫 手机没电</td><td>有「充电宝」：免罚</td><td>盲走：饥饿 −6</td><td></td></tr>
+        <tr><td>3</td><td>🚧 电梯坏了</td><td>爬楼：饥饿 −8</td><td>等修：饥饿 −4，面子 −3</td><td></td></tr>
+        <tr><td>3</td><td>🧒 邻居小孩拦路</td><td>陪玩：面子 +5，饥饿 −4</td><td>绕开：无</td><td></td></tr>
+      </tbody>
+    </table></div>
+    <div class="block">道具牌在事件里消耗换免罚，在遭遇里只有小效果：<strong>带不带道具</strong>是牌组构筑里的保险决策。</div>
+  </section>
+
+  <section id="scope">
+    <h2>范围与技术</h2>
+    <div class="two">
+      <div class="block"><strong>v0.1 包含</strong><br>完整单局 3 幕 15 节点 · 9 个 NPC 含三阶段家门 BOSS · 回合制卡牌遭遇 · 四类节点 · 28 张牌 · 10 个事件 · 胜负结算与评级 · 断线续局</div>
+      <div class="block"><strong>后续版本</strong><br>局外成长与解锁 · 牌升级 · 商店与货币 · 每日种子排行榜（Koa2 后端）· 美术与音效 · 微信小游戏移植</div>
+    </div>
+    <div class="block">技术：纯前端 HTML + 原生 ES Module，无构建步骤。<strong>逻辑层（<code>src/battle.js</code>、<code>src/run.js</code>、<code>src/map.js</code>、<code>src/data/</code>）不依赖 DOM</strong>，可直接搬进小游戏；UI 层在 Canvas 重写。随机数可序列化，同种子可复盘。</div>
+    <h3>结算</h3>
+    <div class="block">胜利「吃到了」：评级 S（饥饿 ≥ 40 且面子 ≥ 50）/ A（饥饿 ≥ 20）/ B。失败「饿昏倒地，梦里吃到了」：显示倒在哪一幕、被谁拖住。</div>
+  </section>
+
+  <section id="accept">
+    <h2>验收标准（v0.1）</h2>
+    <ol class="acc">
+      <li>贪心策略 AI 200 局胜率 30%–90%；随机策略 AI 200 局不崩溃、胜率 &lt; 30%。<span class="status">自动化测试</span></li>
+      <li>借口「用烂了」减半在同一局内跨遭遇生效。<span class="status">自动化测试</span></li>
+      <li>饥饿 &lt; 20 时 ≥ 2 费与绝招不可打出；饥饿 0 判负。<span class="status">自动化测试</span></li>
+      <li>老板疑心 ≥ 5 触发加班；「汇报进展」能压疑心。<span class="status">自动化测试</span></li>
+      <li>接过家人电话则家门 BOSS 跳过阶段 2。<span class="status">自动化测试</span></li>
+      <li>刷新页面后可从标题页「继续上局」。<span class="status">存档往返测试</span></li>
+    </ol>
+  </section>
+</div>

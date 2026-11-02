@@ -1,0 +1,12 @@
+{
+  "name": "bellyfirst",
+  "version": "0.1.0",
+  "description": "《今天必须吃到饭》—— Roguelike 卡牌，下班回家吃饭模拟器",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "node tools/serve.js 5173",
+    "test": "node --test test/*.test.js"
+  },
+  "license": "UNLICENSED"
+}
