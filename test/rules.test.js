@@ -464,3 +464,30 @@ test('22. 连击：连续刚好 streak++；破链归零；≥5 掉道具；≥3 
   Run.choose(s2, 0); // 热情选项极可能过热
   assert.ok(s2.stats.streak === 0 || s2.stats.streak >= 0);
 });
+
+// ── 饭点危机等级 ──
+test('等级：Lv0 与旧版开局一致，等级被钳在 0..MAX', () => {
+  const a = Run.newRun(42), b = Run.newRun(42, 0);
+  assert.equal(a.level, 0);
+  assert.deepEqual(a.items, b.items);
+  assert.equal(Run.newRun(42, 99).level, 8);
+  assert.equal(Run.newRun(42, -3).level, 0);
+});
+
+test('等级：开局规则逐级叠加', () => {
+  const s3 = Run.newRun(42, 3);
+  assert.equal(s3.items.length, 0);
+  assert.equal(s3.hunger, 100);
+  const s5 = Run.newRun(42, 5);
+  assert.equal(s5.moves.divertLeft, Run.newRun(42, 4).moves.divertLeft - 1);
+  assert.ok(Run.newRun(42, 6).runMods.length === 3);
+  assert.equal(Run.newRun(42, 7).hunger, 92);
+  assert.ok(Run.newRun(42, 5).runMods.length === 2);
+});
+
+test('等级：结果里带等级，难度越高随机玩家胜率越低', () => {
+  assert.equal(simulate(5, 'greedy', 800, 4).result.level, 4);
+  const lo = batch(300, 'random', 1000, 0).rate;
+  const hi = batch(300, 'random', 1000, 8).rate;
+  assert.ok(hi < lo, `Lv8 ${hi} 应低于 Lv0 ${lo}`);
+});

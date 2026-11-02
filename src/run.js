@@ -8,6 +8,7 @@ import { MODIFIERS, MODIFIER_IDS, MODS_PER_RUN } from './data/modifiers.js';
 import { EVENTS, EVENT_IDS, EVENT_CHANCE } from './data/events.js';
 import { STRANGER_SCENES, STRANGER_WEIGHTS, ANIMAL_IDS } from './data/strangers.js';
 import { MEALS, MEAL_IDS } from './data/meals.js';
+import { MAX_LEVEL, LV_SLOT_HUNGER, LV_INTRUDE_RANDOM, LV_DODGE_CUT, LV_START_HUNGER, LV_VARIANCE } from './data/levels.js';
 
 export const SAVE_VERSION = 6;
 export const STRANGER_CHANCE = 0.75;  // 二选一的时段里出现第三个「路人」选项的概率
@@ -26,13 +27,16 @@ export const HEARD_MULT = 1.5;       // 甩锅给在场的人：他听见了
 export function clamp(v, lo = 0, hi = 100) { return Math.max(lo, Math.min(hi, v)); }
 export function hasMod(state, id) { return !!(state.runMods && state.runMods.includes(id)); }
 export function modOf(id) { return MODIFIERS[id]; }
+// 难度等级：Lv N 包含 1..N 的全部规则
+export function atLevel(state, n) { return (state.level || 0) >= n; }
 
-export function newRun(seed = randomSeed()) {
+export function newRun(seed = randomSeed(), level = 0) {
+  level = Math.max(0, Math.min(MAX_LEVEL, level | 0));
   const rng = makeRng(seed);
   const npcs = {};
   for (const id of NPC_ORDER) npcs[id] = { att: NPCS[id].init, grudge: 0, active: !NPCS[id].lateJoin };
   const state = {
-    version: SAVE_VERSION, seed, rng,
+    version: SAVE_VERSION, seed, rng, level,
     hunger: 100, npcs, slot: 0,
     screen: null, scene: null, mini: null, notices: [], pendingCall: false, companion: false,
     flags: {}, stats: { perfect: 0, incidents: 0, choices: 0, incidentLog: [], transfers: 0, panics: 0, itemsUsed: 0, strangers: 0, dodges: 0, diverts: 0, busy: 0, streak: 0, bestStreak: 0, events: 0 },
@@ -40,9 +44,13 @@ export function newRun(seed = randomSeed()) {
     items: [rng.pick(ITEM_IDS)], extraChoice: null, extraSlot: -1,
     moves: { divertLeft: DIVERT_PER_RUN },
     meal: rng.pick(MEAL_IDS),
-    runMods: rng.shuffle([...MODIFIER_IDS]).slice(0, MODS_PER_RUN),
+    runMods: rng.shuffle([...MODIFIER_IDS]).slice(0, MODS_PER_RUN + (level >= 6 ? 1 : 0)),
     result: null,
   };
+  // 难度等级初始效果
+  if (level >= 3) state.items = [];
+  if (level >= 5) state.moves.divertLeft -= 1;
+  if (level >= 7) state.hunger = LV_START_HUNGER;
   // 今日词条初始效果
   if (state.runMods.includes('moody')) {
     for (const n of Object.values(state.npcs)) n.att = clamp(n.att - 15);
@@ -161,8 +169,7 @@ export function expectedDelta(state, npcId, base, primaryId) {
   let v = base;
   if (def.trait === 'riseFast' && v > 0) v *= 1.5;
   if (hasMod(state, 'acoff') && v > 0) v = Math.round(v * 1.3);
-  if (hasMod(state, 'rainy') && v > 0) v += 8;
-  if (def.trait === 'slow') {
+  if (hasMod(state, 'rainy') && v > 0) v += 8;  if (def.trait === 'slow') {
     v *= 0.6;
     if (v < 0 && zoneOf(n.att) === 'hot') v *= 0.5;
   }
@@ -175,7 +182,8 @@ export function expectedDelta(state, npcId, base, primaryId) {
 
 function applyDelta(state, npcId, base, primaryId, kind) {
   const expected = expectedDelta(state, npcId, base, primaryId);
-  const noise = state.rng.int(-VARIANCE, VARIANCE);
+  const vr = atLevel(state, 8) ? LV_VARIANCE : VARIANCE;
+  const noise = state.rng.int(-vr, vr);
   const n = state.npcs[npcId];
   if (!n.transient) n.active = true;
   const before = n.att;
@@ -305,8 +313,10 @@ export function resolveMini(state, value, how = 'release') {
 // 招数：装透明（躲）/ 支走（借他人）/ 装忙（防）。不消耗对话拍。
 export function dodgeRate(state) {
   const sc = sceneDef(state);
-  const base = DODGE_RATE[zoneOf(state.npcs[sc.npc].att)];
-  return hasMod(state, 'friday') ? Math.min(0.95, base + 0.10) : base;
+  let rate = DODGE_RATE[zoneOf(state.npcs[sc.npc].att)];
+  if (hasMod(state, 'friday')) rate = Math.min(0.95, rate + 0.10);
+  if (atLevel(state, 5)) rate = Math.max(0.05, rate - LV_DODGE_CUT);
+  return rate;
 }
 export function divertTargets(state) {
   const sc = sceneDef(state);
@@ -391,7 +401,7 @@ function rollIntrusion(state) {
   const hot = candidates.filter(id => zoneOf(state.npcs[id].att) === 'hot');
   let who = null;
   if (hot.length && state.rng.next() < INTRUDE.hot) who = state.rng.pick(hot);
-  else if (state.rng.next() < INTRUDE.random) who = state.rng.pick(candidates);
+  else if (state.rng.next() < (atLevel(state, 4) ? LV_INTRUDE_RANDOM : INTRUDE.random)) who = state.rng.pick(candidates);
   else if (!sc.stranger && state.rng.next() < ANIMAL_INTRUDE) {
     who = state.rng.pick(ANIMAL_IDS);
     state.npcs[who] = { att: NPCS[who].init, grudge: 0, active: false, transient: true };
@@ -516,7 +526,7 @@ function endSlot(state) {
       if (id === 'mom') state.pendingCall = false;
     }
   }
-  state.hunger = clamp(state.hunger - SLOT_HUNGER + (hasMod(state, 'waimai') ? 3 : 0));
+  state.hunger = clamp(state.hunger - SLOT_HUNGER - (atLevel(state, 2) ? LV_SLOT_HUNGER : 0) + (hasMod(state, 'waimai') ? 3 : 0));
   if (state.hunger <= 0) return finish(state, false, '走着走着，饿晕在路边');
   state.slot++;
   state.scene = null;
@@ -579,6 +589,7 @@ export function finish(state, win, cause) {
     hunger: state.hunger, stats: { ...state.stats, incidentLog: [...state.stats.incidentLog] },
     npcs: NPC_ORDER.filter(id => state.npcs[id].active).map(id => ({ id, att: state.npcs[id].att, zone: zoneOf(state.npcs[id].att) })),
     slot: state.slot,
+    level: state.level || 0,
   };
   state.screen = 'result';
   state.result.tasks = taskStatus(state);

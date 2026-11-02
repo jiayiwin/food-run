@@ -32,8 +32,8 @@ function optionScore(state, opt, primaryId) {
   return score;
 }
 
-export function simulate(seed, policy = 'random', maxSteps = 800) {
-  const state = Run.newRun(seed);
+export function simulate(seed, policy = 'random', maxSteps = 800, level = 0) {
+  const state = Run.newRun(seed, level);
   const ai = makeRng((seed ^ 0x9e3779b9) >>> 0);
   let steps = 0;
   while (state.screen !== 'result' && steps++ < maxSteps) {
@@ -110,11 +110,11 @@ export function simulate(seed, policy = 'random', maxSteps = 800) {
   return state;
 }
 
-export function batch(n, policy, seed0 = 1000) {
-  const out = { n, wins: 0, rate: 0, grades: { S: 0, A: 0, B: 0 }, avgHunger: 0, avgIncidents: 0, avgPerfect: 0, intrusions: 0 };
+export function batch(n, policy, seed0 = 1000, level = 0) {
+  const out = { n, level, wins: 0, rate: 0, grades: { S: 0, A: 0, B: 0 }, avgHunger: 0, avgIncidents: 0, avgPerfect: 0, intrusions: 0 };
   let hunger = 0, inc = 0, perf = 0;
   for (let i = 0; i < n; i++) {
-    const s = simulate(seed0 + i, policy);
+    const s = simulate(seed0 + i, policy, 800, level);
     if (s.result.win) { out.wins++; out.grades[s.result.grade]++; }
     hunger += s.result.hunger; inc += s.result.stats.incidents; perf += s.result.stats.perfect;
   }

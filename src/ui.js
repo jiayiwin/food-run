@@ -6,6 +6,7 @@ import { ITEMS, KIND_LABEL, MAX_ITEMS } from './data/items.js';
 import { MODIFIERS } from './data/modifiers.js';
 import { EVENTS } from './data/events.js';
 import { MEAL_STATE } from './data/meals.js';
+import { LEVELS, MAX_LEVEL } from './data/levels.js';
 import * as Run from './run.js';
 
 export function render(state, ctx) {
@@ -68,7 +69,7 @@ function hud(state, ctx) {
   }).join('');
   return `<header class="hud">
     <div class="hud-top">
-      <span class="hud-time">${ACT_NAMES[slot.act]} · ${slot.time}</span>
+      <span class="hud-time">${state.level ? `<b class="lv-badge" title="${levelTitle(state.level)}">Lv${state.level}</b>` : ''}${ACT_NAMES[slot.act]} · ${slot.time}</span>
       <div class="hunger ${low ? 'danger' : ''}"><span>🍚</span><div class="hunger-track"><i style="width:${state.hunger}%"></i></div></div>
       ${state.stats.streak >= 3 ? `<span class="streak-badge" title="连续完美：3 连下个时段每句 +3 秒，5 连起每次完美掉一件道具">🔥 ${state.stats.streak} 连</span>` : ''}
       <button class="link" data-action="mute" title="音效与音乐">${ctx?.muted ? '🔇' : '🔊'}</button>
@@ -325,8 +326,45 @@ function renderNotice(state) {
   </section>`;
 }
 
+function levelTitle(lv) {
+  return LEVELS.filter(l => l.lv <= lv).map(l => `${l.icon} ${l.name}：${l.desc}`).join('\n');
+}
+
+function levelRules(lv) {
+  if (!lv) return '<p class="lv-plain">普通的一天。赢一次解锁「饭点危机 Lv1」。</p>';
+  return `<ul class="lv-rules">${LEVELS.filter(l => l.lv <= lv).map(l => `<li class="${l.lv === lv ? 'new' : ''}"><span>${l.icon}</span><b>${l.name}</b><small>${l.desc}</small></li>`).join('')}</ul>`;
+}
+
+function levelPicker(p) {
+  const sel = p.selected || 0;
+  const best = p.best?.[sel];
+  const locked = sel >= p.unlocked && sel < MAX_LEVEL;
+  return `<div class="level-pick">
+    <div class="lv-head">
+      <button class="lv-step" data-action="level-down" ${sel <= 0 ? 'disabled' : ''} aria-label="降低难度">‹</button>
+      <div class="lv-label"><small>饭点危机</small><b>${sel ? 'Lv ' + sel : '普通'}</b>${best ? `<i class="lv-best grade-${best}">最佳 ${best}</i>` : ''}</div>
+      <button class="lv-step" data-action="level-up" ${sel >= p.unlocked ? 'disabled' : ''} aria-label="提高难度">›</button>
+    </div>
+    ${levelRules(sel)}
+    ${locked && sel > 0 ? `<p class="lv-next">🔒 在这一级赢一次，解锁 Lv ${sel + 1}</p>` : ''}
+    ${sel === MAX_LEVEL && best ? '<p class="lv-next">已经是最高难度。去拿个 S 吧。</p>' : ''}
+  </div>`;
+}
+
+function resultLevel(state) {
+  const r = state.result;
+  const lv = r.level || 0;
+  const pg = r.progress || {};
+  const next = pg.newUnlock ? LEVELS.find(l => l.lv === pg.newUnlock) : null;
+  return `<div class="lv-result">
+    <div class="lv-result-row"><span>${lv ? `饭点危机 <b>Lv ${lv}</b>` : '普通难度'}</span>${pg.newBest ? `<span class="lv-newbest">本级新纪录 ${r.grade}</span>` : pg.prevBest ? `<span class="muted">本级最佳 ${pg.prevBest}</span>` : ''}</div>
+    ${next ? `<div class="lv-unlock"><span>🔓 解锁 <b>Lv ${next.lv}</b> · ${next.icon} ${next.name}</span><small>${next.desc}</small></div>` : ''}
+  </div>`;
+}
+
 function renderResult(state) {
   const r = state.result;
+  const next = r.progress?.newUnlock;
   const title = r.win ? '吃上饭了' : '没吃上';
   const npcs = r.npcs.map(x => `<div class="final-npc zone-${x.zone}">${sprite(x.id, x.att, 'xs')}<div><span>${NPCS[x.id].name}</span>${attBar(x.att)}</div></div>`).join('');
   const incidents = r.stats.incidentLog.length ? `<ul class="inc-list">${r.stats.incidentLog.map(i => `<li>${i}</li>`).join('')}</ul>` : '<p class="muted">零事故。没有人真正记住你今天的样子。</p>';
@@ -344,6 +382,7 @@ function renderResult(state) {
       </div>
     </div>
     <div class="ending">${r.lines.map(l => `<p>${l}</p>`).join('')}</div>
+    ${resultLevel(state)}
     ${(state.runMods || []).length ? `<div class="mod-row result-mods">${state.runMods.map(id => { const m = MODIFIERS[id]; return m ? `<div class="mod-pill" title="${m.detail}"><span>${m.icon} ${m.name}</span></div>` : ''; }).join('')}</div>` : ''}
     <div class="stat-row"><span>完美 <b>${r.stats.perfect}</b></span><span>最佳连击 <b>${r.stats.bestStreak || 0}</b></span><span>事件牌 <b>${r.stats.events || 0}</b></span><span>事故 <b>${r.stats.incidents}</b></span><span>甩锅 <b>${r.stats.transfers}</b></span><span>慌了 <b>${r.stats.panics}</b></span><span>用道具 <b>${r.stats.itemsUsed}</b></span><span>溜走 <b>${r.stats.dodges}</b></span><span>支走 <b>${r.stats.diverts}</b></span><span>路人 <b>${r.stats.strangers}</b></span><span>剩余饥饿 <b>${r.hunger}</b></span></div>
     <div class="tasks result-tasks"><div class="tasks-head">📋 今日任务 ${r.tasksDone ?? 0} / ${(r.tasks || []).length} ${'★'.repeat(r.tasksDone || 0)}</div>${tasks}</div>
@@ -352,7 +391,8 @@ function renderResult(state) {
     <h3>事故记录</h3>
     ${incidents}
     <div class="actions col">
-      <button class="btn primary wide" data-action="new-run">明天继续吃</button>
+      ${next ? `<button class="btn primary wide" data-action="next-level">挑战 Lv ${next}</button>` : ''}
+      <button class="btn ${next ? '' : 'primary'} wide" data-action="new-run">${r.level ? `再来一局 Lv ${r.level}` : '明天继续吃'}</button>
       <button class="btn wide" data-action="replay-seed">同种子重开 · ${state.seed}</button>
       <button class="btn link" data-action="title">回标题</button>
     </div>
@@ -368,12 +408,13 @@ function renderTitle(ctx) {
     <div class="goal">【今日目标：谁都别拦我，回家吃饭】</div>
     <p class="tagline">恋爱游戏是让所有人都喜欢你。这里反过来：谁多看你一眼，你就晚吃一口。把每个人的注意力都维持在「刚好」，偷感拉满，溜回家吃饭。<small>牛马下班实录 · 松弛感模拟器</small></p>
     <div class="actions col">
-      ${ctx.hasSave ? `<button class="btn primary wide" data-action="continue-run">继续今天 · ${ctx.saveTime}</button>` : ''}
+      ${ctx.hasSave ? `<button class="btn primary wide" data-action="continue-run">继续今天 · ${ctx.saveLevel ? `Lv${ctx.saveLevel} · ` : ''}${ctx.saveTime}</button>` : ''}
       ${ctx.hasSave && ctx.mods && ctx.mods.length ? `<div class="mod-row title-mods">${ctx.mods.map(id => { const m = MODIFIERS[id]; return m ? `<div class="mod-pill" title="${m.detail}"><span>${m.icon} ${m.name}</span><small>${m.desc}</small></div>` : ''; }).join('')}</div>` : ''}
-      <button class="btn ${ctx.hasSave ? '' : 'primary'} wide" data-action="start">下班了，回家吃饭</button>
+      ${ctx.progress && ctx.progress.unlocked > 0 ? levelPicker(ctx.progress) : ''}
+      <button class="btn ${ctx.hasSave ? '' : 'primary'} wide" data-action="start">下班了，回家吃饭${ctx.progress?.selected ? ` · Lv${ctx.progress.selected}` : ''}</button>
       <label class="seed"><span>种子（可选）</span><input id="seed-input" inputmode="numeric" placeholder="留空随机"></label>
     </div>
-    <div class="howto">几秒内选一句话。三招：<b>装透明</b>溜走、<b>支走</b>转移威胁、<b>装忙</b>本句不升温；道具攻防补时；场景里偶尔有<b>事件牌</b>，一次性特殊手牌；每局 2 条<b>今日词条</b>改变规则。</div>
+    <div class="howto">几秒内选一句话。三招：<b>装透明</b>溜走、<b>支走</b>转移威胁、<b>装忙</b>本句不升温；道具攻防补时；场景里偶尔有<b>事件牌</b>，一次性特殊手牌；每局 2 条<b>今日词条</b>改变规则。赢一局解锁更难的<b>饭点危机</b>等级，共 ${MAX_LEVEL} 级。</div>
     <div class="cast">
       ${NPC_ORDER.map(id => `<div class="cast-item" title="${NPCS[id].traitText}">${sprite(id, 50, 'sm')}<b>${NPCS[id].name}</b></div>`).join('')}
     </div>

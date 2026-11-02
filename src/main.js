@@ -6,8 +6,34 @@ import { zoneOf } from './data/npcs.js';
 import { BG, BG_BY_ACT, BGM } from './assets.js';
 import { sfx } from './sfx.js';
 import { createPetals, typewriter } from './fx.js';
+import { MAX_LEVEL, LV_TIMER_CUT } from './data/levels.js';
 
 const KEY = 'bellyfirst.save.v3';
+const PKEY = 'bellyfirst.progress.v1';
+const GRADE_RANK = { S: 3, A: 2, B: 1 };
+
+// ── 难度进度：unlocked = 能选的最高等级；best = 每级最佳评级 ──
+const progress = {
+  data: { unlocked: 0, selected: 0, best: {} },
+  load() {
+    try { const j = localStorage.getItem(PKEY); if (j) this.data = { ...this.data, ...JSON.parse(j) }; } catch { /* 忽略 */ }
+    this.data.selected = Math.min(this.data.selected, this.data.unlocked);
+  },
+  save() { try { localStorage.setItem(PKEY, JSON.stringify(this.data)); } catch { /* 忽略 */ } },
+  select(lv) { this.data.selected = Math.max(0, Math.min(this.data.unlocked, lv)); this.save(); },
+  // 一局结束时记一次：返回 { newUnlock, newBest }
+  record(result) {
+    const lv = result.level || 0;
+    const out = { newUnlock: null, newBest: false, prevBest: this.data.best[lv] || null };
+    if (result.win) {
+      if (lv >= this.data.unlocked && lv < MAX_LEVEL) { this.data.unlocked = lv + 1; out.newUnlock = lv + 1; }
+      if ((GRADE_RANK[result.grade] || 0) > (GRADE_RANK[this.data.best[lv]] || 0)) { this.data.best[lv] = result.grade; out.newBest = true; }
+    }
+    this.save();
+    return out;
+  },
+};
+progress.load();
 const REACT_AUTO_MS = 0; // 0 = 不自动翻页，看完自己点
 const app = document.getElementById('app');
 let state = null;
@@ -105,10 +131,12 @@ function stopTimers() {
 function paint() {
   stopTimers();
   if (titlePetals) { titlePetals.stop(); titlePetals = null; }
-  let ctx = { muted: sfx.muted };
+  let ctx = { muted: sfx.muted, progress: progress.data };
   if (!state) {
     const saved = store.load();
-    ctx = { ...ctx, hasSave: !!saved, saveTime: saved ? SCHEDULE[saved.slot].time : '', mods: saved ? saved.runMods : null };
+    ctx = { ...ctx, hasSave: !!saved, saveTime: saved ? SCHEDULE[saved.slot].time : '', saveLevel: saved ? (saved.level || 0) : 0, mods: saved ? saved.runMods : null };
+  } else if (state.screen === 'result' && !state.result.progress) {
+    state.result.progress = progress.record(state.result);
   }
   app.innerHTML = render(state, ctx);
   const screen = state ? state.screen : 'title';
@@ -139,7 +167,7 @@ function afterPaint() {
     const key = `${state.seed}:${state.slot}:${state.scene.id}#${state.scene.beat}`;
     if (timerKey !== key) {
       timerKey = key;
-      total = (Run.sceneDef(state).isCall ? TIMER.call : TIMER[Run.currentSlot(state).act]) + (state.scene.beat === 0 && !Run.sceneDef(state).isCall ? TIMER.firstBeatBonus : 0) + (Run.hasMod(state, 'friday') ? Run.FRIDAY_TIMER_BONUS : 0) + (state.flags.relaxed ? 3000 : 0);
+      total = (Run.sceneDef(state).isCall ? TIMER.call : TIMER[Run.currentSlot(state).act]) + (state.scene.beat === 0 && !Run.sceneDef(state).isCall ? TIMER.firstBeatBonus : 0) + (Run.hasMod(state, 'friday') ? Run.FRIDAY_TIMER_BONUS : 0) + (state.flags.relaxed ? 3000 : 0) - (Run.atLevel(state, 1) ? LV_TIMER_CUT : 0);
       deadline = Date.now() + total;
       lastSec = -1;
       if (state.scene.intruder && state.scene.beat > 0) sfx.intrude();
@@ -247,17 +275,20 @@ const actions = {
   start() {
     const raw = (document.getElementById('seed-input')?.value || '').trim();
     const seed = /^\d+$/.test(raw) ? (Number(raw) >>> 0) : undefined;
-    state = Run.newRun(seed);
+    state = Run.newRun(seed, progress.data.selected);
   },
-  'continue-run'() { state = store.load() || Run.newRun(); },
+  'continue-run'() { state = store.load() || Run.newRun(undefined, progress.data.selected); },
+  'level-down'() { progress.select(progress.data.selected - 1); },
+  'level-up'() { progress.select(progress.data.selected + 1); },
+  'next-level'() { progress.select((state.level || 0) + 1); state = Run.newRun(undefined, progress.data.selected); },
   title() { store.save(state); state = null; },
   pick(d) { Run.pickLocation(state, d.id); },
   choose(d) { Run.choose(state, Number(d.idx)); },
   advance() { Run.advance(state); },
   continue() { Run.continueFromSummary(state); },
   dismiss() { Run.dismissNotice(state); },
-  'new-run'() { state = Run.newRun(); },
-  'replay-seed'() { state = Run.newRun(state.seed); },
+  'new-run'() { state = Run.newRun(undefined, state.level || 0); },
+  'replay-seed'() { state = Run.newRun(state.seed, state.level || 0); },
   mute() { sfx.toggle(); bgm.apply(); },
   move(d) {
     if (d.move === 'divert') { state.scene.picking = state.scene.picking === 'divert' ? null : 'divert'; return; }
@@ -285,7 +316,7 @@ app.addEventListener('click', e => {
   if (!el || el.disabled) return;
   const fn = actions[el.dataset.action];
   if (!fn) return;
-  if (!state && !['start', 'continue-run', 'mute'].includes(el.dataset.action)) return;
+  if (!state && !['start', 'continue-run', 'mute', 'level-down', 'level-up'].includes(el.dataset.action)) return;
   sfx.tap();
   fn(el.dataset);
   if (state) store.save(state);
@@ -309,7 +340,11 @@ document.addEventListener('keydown', e => {
 (function demo() {
   const h = (location.hash || '').replace('#', '');
   if (!h.startsWith('demo-')) return;
-  state = Run.newRun(7);
+  // 难度选择 / 解锁：只改内存，不写进度存档
+  if (h === 'demo-levels') { progress.save = () => {}; progress.data = { unlocked: 5, selected: 4, best: { 0: 'S', 1: 'A', 4: 'B' } }; return; }
+  state = Run.newRun(7, h === 'demo-unlock' ? 2 : 0);
+  if (h === 'demo-unlock') { progress.save = () => {}; progress.data = { unlocked: 2, selected: 2, best: { 2: 'B' } }; Run.finish(state, true, null); return; }
+  if (h === 'demo-hud-lv') { state = Run.newRun(7, 6); return; }
   if (h === 'demo-react') Run.choose(state, 1);
   if (h === 'demo-pick') { Run.choose(state, 1); Run.advance(state); Run.choose(state, 1); Run.advance(state); Run.continueFromSummary(state); }
   if (h === 'demo-summary') { Run.choose(state, 1); Run.advance(state); Run.choose(state, 1); Run.advance(state); }
