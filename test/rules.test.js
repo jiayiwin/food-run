@@ -333,12 +333,16 @@ test('16. 招数：装透明按区间成功率、失败 +12；支走 −15/+15�
   // 装忙
   const t = run(3);
   const h = t.hunger;
-  assert.ok(Run.useMove(t, 'busy').ok);
+  const attBefore = Object.fromEntries(t.scene.present.map(id => [id, t.npcs[id].att]));
+  const streak = t.stats.streak = 2;
+  const r = Run.useMove(t, 'busy');
+  assert.ok(r.ok && r.skipped, '装忙跳过这句');
   assert.equal(t.hunger, h + Run.BUSY_HUNGER);
-  assert.equal(Run.expectedDelta(t, 'boss', 25, 'boss'), 0, '本拍正向归零');
-  assert.equal(Run.expectedDelta(t, 'boss', -5, 'boss'), -5, '负向照常');
-  Run.choose(t, 0); Run.advance(t);
-  assert.equal(Run.expectedDelta(t, 'boss', 25, 'boss'), 38, '下一拍恢复');
+  assert.equal(t.scene.phase, 'react');
+  for (const id of t.scene.present) assert.equal(t.npcs[id].att, attBefore[id], '谁的注意力都不变');
+  assert.equal(t.stats.streak, streak, '不断连击');
+  Run.advance(t);
+  assert.equal(t.scene.beat, 1, '直接进下一句');
   assert.equal(Run.useMove(t, 'busy').ok, false, '每场一次');
 });
 

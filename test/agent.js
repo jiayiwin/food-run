@@ -10,15 +10,20 @@ function penalty(att) {
   return Math.abs(att - 50) * 0.2;
 }
 
+export let useForecast = true;
+export function setForecast(v) { useForecast = v; }
+
 function optionScore(state, opt, primaryId) {
   let score = 0;
   const touched = new Set(Object.keys(opt.d || {}));
   let primaryAfter = null;
+  // 情绪预告：把下个时段的波动算进去（只有 useForecast 时）
+  const sw = id => (useForecast && state.npcs[id].nextSwing) || 0;
   for (const [id, base] of Object.entries(opt.d || {})) {
     const cur = state.npcs[id].att;
     const after = Math.max(0, Math.min(100, cur + Run.expectedDelta(state, id, base, primaryId)));
     if (id === primaryId) primaryAfter = after - cur;
-    score += penalty(cur) - penalty(after);
+    score += penalty(cur + sw(id)) - penalty(after + sw(id));
   }
   // 旁观者会被带动
   for (const id of state.scene.present) {
@@ -58,13 +63,18 @@ export function simulate(seed, policy = 'random', maxSteps = 800, level = 0) {
           const m = state.scene.mods;
           if (policy === 'random') {
             if (ai.next() < 0.12 && !m.dodgeUsed) { Run.useMove(state, 'dodge'); break; }
+            if (ai.next() < 0.06 && !m.busyUsed) { Run.useMove(state, 'busy'); break; }
             if (ai.next() < 0.12 && state.moves.divertLeft) { const t = Run.divertTargets(state); if (t.length) { const dr = Run.useMove(state, 'divert', ai.pick(t)); if (dr.ok) break; } }
           } else {
             if (z === 'hot' && state.moves.divertLeft) {
               const t = Run.divertTargets(state).filter(id => !state.scene.present.includes(id)).sort((a, b) => state.npcs[a].att - state.npcs[b].att)[0];
               if (t && state.npcs[t].att < 50) { const dr = Run.useMove(state, 'divert', t); if (dr.ok) break; }
             }
-            if (z === 'hot' && !m.busyUsed && state.hunger > 30) { Run.useMove(state, 'busy'); break; }
+            // 装忙：所有选项都明显亏的时候跳过这句
+            if (!m.busyUsed && state.hunger > 25) {
+              const best = Math.max(...Run.currentBeat(state).options.map(o => optionScore(state, o, primary)));
+              if (best < -6) { Run.useMove(state, 'busy'); break; }
+            }
             if (z === 'safe' && state.scene.beat === 1 && !m.dodgeUsed && state.hunger < 45) { const r = Run.useMove(state, 'dodge'); if (r.ended) break; }
           }
         }

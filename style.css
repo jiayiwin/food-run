@@ -613,3 +613,9 @@ body { padding-block: 0; }
 .lv-unlock { align-self: center; display: flex; flex-direction: column; align-items: center; padding: 8px 16px; border: 1.5px dashed var(--hot); border-radius: 14px; background: var(--card-solid); font-size: 14px; animation: pulse 1.2s ease-in-out infinite alternate; }
 .lv-unlock small { color: var(--muted); font-size: 12px; }
 @media (prefers-reduced-motion: reduce) { .lv-unlock { animation: none; } }
+
+/* 情绪预告箭头 */
+.chip em.mood { font-weight: 800; font-size: 12px; margin-left: 3px; cursor: help; }
+.chip em.mood.up { color: var(--hot); }
+.chip em.mood.down { color: var(--cold); }
+.chip em.mood.flat { color: var(--muted); }

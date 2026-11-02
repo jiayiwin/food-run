@@ -17,6 +17,8 @@ export const DIVERT_PER_RUN = 3;
 export const DODGE_RATE = { safe: 0.75, cold: 0.6, hot: 0.35 };
 export const DIVERT_SELF = -15, DIVERT_TARGET = 15, DODGE_FAIL = 12, BUSY_HUNGER = -3;
 export const FRIDAY_TIMER_BONUS = 2000;
+export const BUSY_LINE = '「……你先忙。」TA 等了两秒，自己把话咽了回去。';
+export const SWING = 15;             // 情绪不稳定的人每个时段的波动幅度（提前一个时段掷好并预告）
 export const VARIANCE = 10;
 export const SLOT_HUNGER = 6;
 export const COMPANION_BONUS = 5;
@@ -48,6 +50,8 @@ export function newRun(seed = randomSeed(), level = 0) {
     result: null,
   };
   // 难度等级初始效果
+  // 情绪不稳定的人：预掷下个时段的波动，界面上提前预告
+  for (const id of NPC_ORDER) if (NPCS[id].trait === 'unstable') state.npcs[id].nextSwing = rng.int(-SWING, SWING);
   if (level >= 3) state.items = [];
   if (level >= 5) state.moves.divertLeft -= 1;
   if (level >= 7) state.hunger = LV_START_HUNGER;
@@ -174,7 +178,6 @@ export function expectedDelta(state, npcId, base, primaryId) {
     if (v < 0 && zoneOf(n.att) === 'hot') v *= 0.5;
   }
   if (state.scene?.mods && npcId === primaryId && v > 0) v *= state.scene.mods.posMult;
-  if (state.scene?.mods && npcId === primaryId && v > 0 && state.scene.mods.busyBeat === state.scene.beat) v = 0;
   if (state.scene?.companion && npcId !== 'lin' && npcId === primaryId) v += COMPANION_BONUS;
   if (state.scene && npcId !== primaryId && state.scene.present.includes(npcId)) v *= HEARD_MULT;
   return Math.round(v);
@@ -363,13 +366,17 @@ export function useMove(state, move, target) {
   }
   if (move === 'busy') {
     if (mods.busyUsed) return { ok: false, reason: '这场已经装过了' };
+    // 装忙：这一句不接话，直接跳过（谁的注意力都不变），不算完美也不断连击
     mods.busyUsed = true;
-    mods.busyBeat = state.scene.beat;
     state.stats.busy++;
     state.hunger = clamp(state.hunger + BUSY_HUNGER);
-    mods.used.push({ id: 'busy', text: `🧱 装忙：这一句无论怎么说 ${NPCS[primary].name} 都不会升温，饥饿 ${BUSY_HUNGER}` });
+    mods.used.push({ id: 'busy', text: `🧱 装忙：这句没接，饥饿 ${BUSY_HUNGER}` });
+    const zones = state.scene.present.map(id => zoneOf(state.npcs[id].att));
+    state.scene.stamp = zones.includes('hot') ? 'danger' : zones.includes('cold') ? 'cold' : 'perfect';
+    state.scene.reaction = { option: '（低头猛敲键盘，假装没听见）', panic: false, busy: true, deltas: [], lines: [{ npc: primary, text: BUSY_LINE }] };
+    state.scene.phase = 'react';
     if (state.hunger <= 0) finish(state, false, `在「${sc.place}」装忙装到饿晕`);
-    return { ok: true, ended: false };
+    return { ok: true, ended: false, skipped: true };
   }
   return { ok: false, reason: '没有这招' };
 }
@@ -508,7 +515,10 @@ function endSlot(state) {
     const def = NPCS[id];
     const n = state.npcs[id];
     if (!seen.includes(id)) n.att = clamp(n.att - (hasMod(state, 'rainy') ? Math.ceil(NEGLECT_DECAY / 2) : NEGLECT_DECAY));
-    if (def.trait === 'unstable') n.att = clamp(n.att + state.rng.int(-15, 15));
+    if (def.trait === 'unstable') {
+      n.att = clamp(n.att + (n.nextSwing ?? state.rng.int(-SWING, SWING)));
+      n.nextSwing = state.rng.int(-SWING, SWING);
+    }
     if (def.trait === 'contagious' && ids.some(k => k !== id && zoneOf(state.npcs[k].att) === 'hot')) n.att = clamp(n.att + 6);
   }
   for (const id of ids) {

@@ -49,7 +49,7 @@ const CORE = {
     coldLine: '「你这人，越来越淡了。」他嘟囔了一句。',
   },
   lin: {
-    id: 'lin', name: '小林', fullName: '暗恋你的同事小林', icon: '🌸', init: 65,
+    id: 'lin', name: '小林', fullName: '暗恋你的同事小林', icon: '🌸', init: 60,
     faces: { hot: '😳', safe: '🙂', cold: '🥺' },
     react: {
       up: '她的耳朵更红了。尊嘟假嘟？',
@@ -58,7 +58,7 @@ const CORE = {
       heard: '她在旁边假装看手机。',
       intrude: '「那个……我、我也在这儿。」小林不知什么时候站在了旁边。',
     },
-    trait: 'unstable', traitText: '极不稳定：一会儿上头一会儿下头，冷落她怨气翻倍',
+    trait: 'unstable', traitText: '极不稳定：一会儿上头一会儿下头（头像旁的箭头预告她下个时段的情绪），冷落她怨气翻倍',
     blurb: '偷感很重的暗恋，反应比短剧女主还夸张。',
     hot: { title: '小林等你一起走', text: '「我、我也去那个方向！」她跟了上来。接下来一段路，所有人都看见你们俩，弹幕刷满「磕到了」。', hunger: -6, companion: true },
     trouble: { title: '小林在部门群艾特你', text: '部门群：「@你 你走了吗？我在楼下。」底下冒出一排「？」和一个「磕到了」。', self: 50, others: { all: 8 } },

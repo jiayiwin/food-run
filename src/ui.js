@@ -59,13 +59,21 @@ function tasksHtml(state, compact = false) {
   </div>`;
 }
 
+// 情绪预告：下个时段结束时的波动方向（只有情绪不稳定的人有）
+function moodTag(n) {
+  if (n.nextSwing == null) return '';
+  const v = n.nextSwing;
+  const [cls, arrow, text] = v >= 8 ? ['up', '⇈', '要大上头'] : v >= 3 ? ['up', '↑', '有点上头'] : v <= -8 ? ['down', '⇊', '要大下头'] : v <= -3 ? ['down', '↓', '有点下头'] : ['flat', '→', '情绪平稳'];
+  return `<em class="mood ${cls}" title="情绪预告：这个时段结束后${text}">${arrow}</em>`;
+}
+
 function hud(state, ctx) {
   const slot = Run.currentSlot(state);
   const low = state.hunger < 25;
   const chips = Run.activeNpcs(state).map(id => {
     const n = state.npcs[id];
     const z = zoneOf(n.att);
-    return `<span class="chip zone-${z}" title="${NPCS[id].traitText}">${face(id, n.att)} ${NPCS[id].name}<i class="mini"><b style="left:${n.att}%"></b></i><small>${ZONE_LABEL[z]}</small>${n.grudge ? `<em title="怨气">💢</em>` : ''}</span>`;
+    return `<span class="chip zone-${z}" title="${NPCS[id].traitText}">${face(id, n.att)} ${NPCS[id].name}<i class="mini"><b style="left:${n.att}%"></b></i><small>${ZONE_LABEL[z]}</small>${moodTag(n)}${n.grudge ? `<em title="怨气">💢</em>` : ''}</span>`;
   }).join('');
   return `<header class="hud">
     <div class="hud-top">
@@ -199,7 +207,7 @@ function movesBar(state) {
   return `<div class="moves">
     <button class="move ${m.dodgeUsed ? 'off' : ''}" data-action="move" data-move="dodge" ${m.dodgeUsed ? 'disabled' : ''} title="尝试直接溜走。成功这场就结束；失败被抓包 +12。每场一次。"><b>👻 装透明</b><small>${m.dodgeUsed ? '试过了' : '溜走 ' + rate + '%'}</small></button>
     <button class="move ${state.moves.divertLeft ? '' : 'off'} ${picking ? 'active' : ''}" data-action="move" data-move="divert" ${state.moves.divertLeft ? '' : 'disabled'} title="点一个人当借口，把 TA 的注意力引过去：TA −15，被点名的 +15（在场 ×1.5）。每天 3 次。"><b>👉 支走</b><small>剩 ${state.moves.divertLeft} 次</small></button>
-    <button class="move ${m.busyUsed ? 'off' : ''}" data-action="move" data-move="busy" ${m.busyUsed ? 'disabled' : ''} title="这一句无论怎么说 TA 都不会升温，饥饿 −3。每场一次。"><b>🧱 装忙</b><small>${m.busyUsed ? '装过了' : '本拍不升温'}</small></button>
+    <button class="move ${m.busyUsed ? 'off' : ''}" data-action="move" data-move="busy" ${m.busyUsed ? 'disabled' : ''} title="这句不接话，直接跳过：谁的注意力都不变，饥饿 −3。每场一次。"><b>🧱 装忙</b><small>${m.busyUsed ? '装过了' : '跳过这句'}</small></button>
   </div>
   ${picking ? `<div class="targets"><span class="targets-head">「……找你！」支去谁那儿？</span>${targets}<button class="target cancel" data-action="move-cancel">算了</button></div>` : ''}`;
 }
@@ -251,6 +259,7 @@ function renderReact(state) {
     danger: { text: '芭比Q了！被盯上了', sub: '有人想拉着你聊，饭要凉了' },
     cold: { text: '冷场了……淡淡的死感', sub: '冷落久了，回头找你麻烦更耽误吃饭' },
   }[state.scene.stamp];
+  if (r.busy) Object.assign(map, { text: '装忙成功，这句躲过去了', sub: '没人加分也没人减分，但肚子又空了一点' });
   const lines = r.lines.map(l => `<div class="react-line"><span>${face(l.npc, state.npcs[l.npc].att)}</span><span>${l.text}</span></div>`).join('');
   return `<section class="screen scene react stamp-${state.scene.stamp} bg-${sc.bg}">
     <div class="you">${r.panic ? '<span class="panic">慌了！随口一说：</span>' : '你：'}${r.option}</div>

@@ -345,6 +345,7 @@ document.addEventListener('keydown', e => {
   state = Run.newRun(7, h === 'demo-unlock' ? 2 : 0);
   if (h === 'demo-unlock') { progress.save = () => {}; progress.data = { unlocked: 2, selected: 2, best: { 2: 'B' } }; Run.finish(state, true, null); return; }
   if (h === 'demo-hud-lv') { state = Run.newRun(7, 6); return; }
+  if (h === 'demo-busy') { state.npcs.lin.nextSwing = 12; Run.useMove(state, 'busy'); }
   if (h === 'demo-react') Run.choose(state, 1);
   if (h === 'demo-pick') { Run.choose(state, 1); Run.advance(state); Run.choose(state, 1); Run.advance(state); Run.continueFromSummary(state); }
   if (h === 'demo-summary') { Run.choose(state, 1); Run.advance(state); Run.choose(state, 1); Run.advance(state); }
