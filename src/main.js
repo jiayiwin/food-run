@@ -12,12 +12,112 @@ const KEY = 'bellyfirst.save.v3';
 const PKEY = 'bellyfirst.progress.v1';
 const GRADE_RANK = { S: 3, A: 2, B: 1 };
 
+// ── 新手引导：每条只出一次，看过的记进 progress.data.tips。每次重绘最多弹一条 ──
+const choosing = s => s && s.screen === 'scene' && s.scene.phase === 'choose';
+const TIPS = [
+  { id: 'basics', when: s => choosing(s), steps: [
+    { sel: '.portrait .att', text: '这是 TA 对你的<b>注意力</b>。让黑线停在中间<span class="t-safe">绿色「刚好」</span>：<span class="t-hot">太热</span>会拉住你聊到饭凉，<span class="t-cold">太冷</span>会记仇回头找你。' },
+    { sel: '.options', text: '选一句话回 TA。后面的箭头就是后果：<span class="tag eff warm">老板↑</span> 升温，<span class="tag eff cool">老板↓</span> 降温，双箭头变化更大。老板现在刚好，挑个动静小的。' },
+    { sel: '.timer', text: '每句只有几秒。倒计时走完你会<b>慌了随口乱说</b>，结果全凭运气。<br>（看引导的时候倒计时是停的）' },
+    { sel: '.hud .hunger', text: '🍚 饥饿条是你的血。被拉住、被找麻烦都会掉，归零就没饭吃。撑到回家就赢。' },
+  ] },
+  { id: 'react', when: s => s?.screen === 'scene' && s.scene.phase === 'react' && !s.scene.reaction?.busy, steps: [
+    { sel: '.stamp', text: '说完这句时，主角在「刚好」、旁边没人「太热」，就是<b>完美</b>。连着完美有奖励：3 连多给时间，5 连掉道具。' },
+    { sel: '.pass', text: '这条<b>合格线</b>随时告诉你此刻过不过关，选之前先看一眼。' },
+  ] },
+  { id: 'moves', when: s => choosing(s) && s.scene.beat >= 1, steps: [
+    { sel: '.moves', text: '三句都不想说？用<b>招</b>：<br>👻 <b>装透明</b>：赌一把直接溜走<br>👉 <b>支走</b>：把 TA 的注意力甩给别人<br>🧱 <b>装忙</b>：这句不接话，谁都不变' },
+  ] },
+  { id: 'bystander', when: s => choosing(s) && s.scene.present.length > 1, steps: [
+    { sel: '.bystanders', text: '旁边的人<b>也在听</b>。你让主角升温，TA 也会被带着升一点；箭头上标了别人的名字，就是直接动到 TA。' },
+  ] },
+  { id: 'pick', when: s => s?.screen === 'pick', steps: [
+    { sel: '.loc-grid', text: '每个时段选一条路。卡片上是 TA 现在的注意力：<span class="t-hot">热的别去凑</span>，<span class="t-cold">冷的去哄两句</span>，不然回头找你麻烦。没见到的人会慢慢变冷。' },
+  ] },
+  { id: 'mood', when: s => choosing(s) && !!app.querySelector('.chip em.mood'), steps: [
+    { sel: '.chip em.mood', up: '.chip', text: '<b>小林</b>情绪不稳定，每个时段结束会自己涨落。名字旁的箭头是预告：<b>⇈</b> 要大上头，就提前让她冷一点；<b>⇊</b> 反过来。' },
+  ] },
+  { id: 'items', when: s => choosing(s) && s.items.length > 0, steps: [
+    { sel: '.items', text: '捡到<b>道具</b>了。点一下就用：有的降温，有的补时间，有的回饥饿。说明写在上面。' },
+  ] },
+  { id: 'event', when: s => choosing(s) && s.scene.event && !s.scene.eventUsed, steps: [
+    { sel: '.event-card', text: '这是<b>事件牌</b>：只在这场出现的一次性手牌，看说明决定用不用，⚠️ 的有风险。' },
+  ] },
+];
+
+const coach = {
+  el: null, off: false,
+  active() { return !!this.el; },
+  // 返回 true = 弹出了引导（调用方应暂停倒计时，等 onDone）
+  check(onDone) {
+    if (this.off || this.el) return false;
+    const seen = progress.data.tips;
+    const tip = TIPS.find(t => !seen.includes(t.id) && t.when(state));
+    if (!tip) return false;
+    const steps = tip.steps.filter(st => app.querySelector(st.sel));
+    if (!steps.length) return false;
+    this.open(tip, steps, onDone);
+    return true;
+  },
+  open(tip, steps, onDone) {
+    const el = document.createElement('div');
+    el.className = 'coach';
+    el.innerHTML = '<div class="coach-hole"></div><div class="coach-bubble"><div class="coach-text"></div><div class="coach-foot"><button class="coach-skip">跳过全部引导</button><button class="coach-next"></button></div></div>';
+    document.body.appendChild(el);
+    this.el = el;
+    let i = 0;
+    const finish = all => {
+      if (all) progress.data.tips = TIPS.map(t => t.id);
+      else if (!progress.data.tips.includes(tip.id)) progress.data.tips.push(tip.id);
+      progress.save();
+      window.removeEventListener('resize', place);
+      el.remove(); this.el = null;
+      onDone?.();
+    };
+    const place = () => {
+      const st = steps[i];
+      let target = app.querySelector(st.sel);
+      if (st.up) target = target?.closest(st.up) || target;
+      if (!target) return;
+      const r = target.getBoundingClientRect();
+      const pad = 6;
+      const hole = el.querySelector('.coach-hole');
+      Object.assign(hole.style, { left: `${r.left - pad}px`, top: `${r.top - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
+      const b = el.querySelector('.coach-bubble');
+      const bw = Math.min(340, innerWidth - 32);
+      b.style.width = `${bw}px`;
+      b.style.left = `${Math.max(16, Math.min(innerWidth - bw - 16, r.left + r.width / 2 - bw / 2))}px`;
+      const bh = b.offsetHeight;
+      const below = r.bottom + pad + 12;
+      b.style.top = `${below + bh < innerHeight - 8 ? below : Math.max(8, r.top - pad - 12 - bh)}px`;
+    };
+    const show = () => {
+      const st = steps[i];
+      let target = app.querySelector(st.sel);
+      if (st.up) target = target?.closest(st.up) || target;
+      target?.scrollIntoView({ block: 'center', inline: 'center' });
+      el.querySelector('.coach-text').innerHTML = st.text;
+      el.querySelector('.coach-next').textContent = i + 1 < steps.length ? `下一步 ${i + 1}/${steps.length}` : '知道了';
+      place();
+      requestAnimationFrame(place);
+    };
+    el.querySelector('.coach-next').addEventListener('click', () => { sfx.tap(); if (++i < steps.length) show(); else finish(false); });
+    el.querySelector('.coach-skip').addEventListener('click', () => { sfx.tap(); finish(true); });
+    window.addEventListener('resize', place);
+    show();
+  },
+};
+
 // ── 难度进度：unlocked = 能选的最高等级；best = 每级最佳评级 ──
 const progress = {
-  data: { unlocked: 0, selected: 0, best: {} },
+  data: { unlocked: 0, selected: 0, best: {}, runs: 0, tips: [] },
   load() {
     try { const j = localStorage.getItem(PKEY); if (j) this.data = { ...this.data, ...JSON.parse(j) }; } catch { /* 忽略 */ }
     this.data.selected = Math.min(this.data.selected, this.data.unlocked);
+    // 老玩家（引导上线前就赢过）不再弹引导
+    if (!Array.isArray(this.data.tips)) this.data.tips = [];
+    if (this.data.unlocked > 0 && !this.data.tipsInit) { this.data.tips = TIPS.map(t => t.id); }
+    this.data.tipsInit = true;
   },
   save() { try { localStorage.setItem(PKEY, JSON.stringify(this.data)); } catch { /* 忽略 */ } },
   select(lv) { this.data.selected = Math.max(0, Math.min(this.data.unlocked, lv)); this.save(); },
@@ -25,6 +125,7 @@ const progress = {
   record(result) {
     const lv = result.level || 0;
     const out = { newUnlock: null, newBest: false, prevBest: this.data.best[lv] || null };
+    this.data.runs = (this.data.runs || 0) + 1;
     if (result.win) {
       if (lv >= this.data.unlocked && lv < MAX_LEVEL) { this.data.unlocked = lv + 1; out.newUnlock = lv + 1; }
       if ((GRADE_RANK[result.grade] || 0) > (GRADE_RANK[this.data.best[lv]] || 0)) { this.data.best[lv] = result.grade; out.newBest = true; }
@@ -167,14 +268,18 @@ function afterPaint() {
     const key = `${state.seed}:${state.slot}:${state.scene.id}#${state.scene.beat}`;
     if (timerKey !== key) {
       timerKey = key;
-      total = (Run.sceneDef(state).isCall ? TIMER.call : TIMER[Run.currentSlot(state).act]) + (state.scene.beat === 0 && !Run.sceneDef(state).isCall ? TIMER.firstBeatBonus : 0) + (Run.hasMod(state, 'friday') ? Run.FRIDAY_TIMER_BONUS : 0) + (state.flags.relaxed ? 3000 : 0) - (Run.atLevel(state, 1) ? LV_TIMER_CUT : 0);
+      total = (Run.sceneDef(state).isCall ? TIMER.call : TIMER[Run.currentSlot(state).act]) + (state.scene.beat === 0 && !Run.sceneDef(state).isCall ? TIMER.firstBeatBonus : 0) + (Run.hasMod(state, 'friday') ? Run.FRIDAY_TIMER_BONUS : 0) + (state.flags.relaxed ? 3000 : 0) - (Run.atLevel(state, 1) ? LV_TIMER_CUT : 0) + (newbie() ? NEWBIE_BONUS : 0);
       deadline = Date.now() + total;
       lastSec = -1;
       if (state.scene.intruder && state.scene.beat > 0) sfx.intrude();
     }
     typewriter(app.querySelector('.bubble .line'));
-    timer = setInterval(tick, 100);
-    tick();
+    // 弹引导时倒计时冻结，看完再走
+    const left = deadline - Date.now();
+    const run = () => { deadline = Date.now() + left; timer = setInterval(tick, 100); tick(); };
+    resultSounded = false;
+    if (!coach.check(run)) run();
+    return;
   } else if (state.screen === 'scene' && state.scene.phase === 'react') {
     const st = state.scene.stamp;
     if (state.scene.reaction?.panic) sfx.panic();
@@ -191,7 +296,12 @@ function afterPaint() {
     }
   }
   if (state.screen !== 'result') resultSounded = false;
+  if (state.screen !== 'mini') coach.check();
 }
+
+// 新手：普通难度前两局每句多 3 秒
+const NEWBIE_BONUS = 3000;
+function newbie() { return !state.level && (progress.data.runs || 0) < 2; }
 
 // ── 路人小游戏 ──
 let mini = null; // { kind, t0, holding, fill, raf }
@@ -290,6 +400,7 @@ const actions = {
   'new-run'() { state = Run.newRun(undefined, state.level || 0); },
   'replay-seed'() { state = Run.newRun(state.seed, state.level || 0); },
   mute() { sfx.toggle(); bgm.apply(); },
+  'reset-tips'() { progress.data.tips = []; progress.save(); },
   move(d) {
     if (d.move === 'divert') { state.scene.picking = state.scene.picking === 'divert' ? null : 'divert'; return; }
     const r = Run.useMove(state, d.move);
@@ -316,7 +427,7 @@ app.addEventListener('click', e => {
   if (!el || el.disabled) return;
   const fn = actions[el.dataset.action];
   if (!fn) return;
-  if (!state && !['start', 'continue-run', 'mute', 'level-down', 'level-up'].includes(el.dataset.action)) return;
+  if (!state && !['start', 'continue-run', 'mute', 'level-down', 'level-up', 'reset-tips'].includes(el.dataset.action)) return;
   sfx.tap();
   fn(el.dataset);
   if (state) store.save(state);
@@ -328,6 +439,7 @@ document.addEventListener('keydown', e => {
   if (!state) return;
   bgm.start();
   const k = e.key.toLowerCase();
+  if (coach.active()) { if (k === ' ' || k === 'enter') { e.preventDefault(); coach.el.querySelector('.coach-next').click(); } return; }
   const idx = { a: 0, b: 1, c: 2, 1: 0, 2: 1, 3: 2 }[k];
   if (state.screen === 'scene' && state.scene.phase === 'choose' && idx != null) { sfx.tap(); Run.choose(state, idx); store.save(state); paint(); }
   else if (k === ' ' || k === 'enter') {
@@ -340,14 +452,19 @@ document.addEventListener('keydown', e => {
 (function demo() {
   const h = (location.hash || '').replace('#', '');
   if (!h.startsWith('demo-')) return;
+  // 截图用：默认不弹引导；#demo-tip-<id> 只弹那一条
+  progress.save = () => {};
+  if (h.startsWith('demo-tip')) { const only = h.slice(9); progress.data.tips = TIPS.map(t => t.id).filter(id => id !== only); }
+  else coach.off = true;
   // 难度选择 / 解锁：只改内存，不写进度存档
   if (h === 'demo-levels') { progress.save = () => {}; progress.data = { unlocked: 5, selected: 4, best: { 0: 'S', 1: 'A', 4: 'B' } }; return; }
   state = Run.newRun(7, h === 'demo-unlock' ? 2 : 0);
   if (h === 'demo-unlock') { progress.save = () => {}; progress.data = { unlocked: 2, selected: 2, best: { 2: 'B' } }; Run.finish(state, true, null); return; }
   if (h === 'demo-hud-lv') { state = Run.newRun(7, 6); return; }
   if (h === 'demo-busy') { state.npcs.lin.nextSwing = 12; Run.useMove(state, 'busy'); }
-  if (h === 'demo-react') Run.choose(state, 1);
-  if (h === 'demo-pick') { Run.choose(state, 1); Run.advance(state); Run.choose(state, 1); Run.advance(state); Run.continueFromSummary(state); }
+  if (h === 'demo-react' || h === 'demo-tip-react') Run.choose(state, 1);
+  if (h === 'demo-tip-moves' || h === 'demo-tip-bystander') { Run.choose(state, 1); Run.advance(state); }
+  if (h === 'demo-pick' || h === 'demo-tip-pick') { Run.choose(state, 1); Run.advance(state); Run.choose(state, 1); Run.advance(state); Run.continueFromSummary(state); }
   if (h === 'demo-summary') { Run.choose(state, 1); Run.advance(state); Run.choose(state, 1); Run.advance(state); }
   if (h === 'demo-event') { state.scene.event = 'distraction'; state.stats.streak = 4; }
   if (h === 'demo-event-used') { state.scene.event = 'recallevent'; Run.useEvent(state); }

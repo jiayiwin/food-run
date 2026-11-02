@@ -224,15 +224,29 @@ function itemsBar(state) {
   </div>`;
 }
 
+// 选项后果：只给方向不给数字。↑ 升温（往「太热」走），↓ 降温（往「太冷」走），双箭头 = 变化大
+function effectTags(state, o, primary) {
+  return Object.entries(o.d || {}).map(([id, base]) => {
+    if (!state.npcs[id] || !NPCS[id]) return '';
+    const v = Run.expectedDelta(state, id, base, primary);
+    if (!v) return '';
+    const big = Math.abs(v) >= 18;
+    const arrow = v > 0 ? (big ? '↑↑' : '↑') : (big ? '↓↓' : '↓');
+    const tip = `${NPCS[id].name}${v > 0 ? '升温' : '降温'}${big ? '（很多）' : ''}`;
+    return `<span class="tag eff ${v > 0 ? 'warm' : 'cool'} ${id === primary ? '' : 'other'}" title="${tip}">${NPCS[id].name}${arrow}</span>`;
+  }).join('');
+}
+
 function renderChoose(state) {
   const sc = Run.sceneDef(state);
   const beat = Run.currentBeat(state);
   const line = Run.beatLine(state);
   const ms = sc.isCall ? TIMER.call : TIMER[Run.currentSlot(state).act];
   const options = beat.options.map((o, i) => {
-    const hunger = o.hunger ? `<span class="tag hunger">${o.hunger > 0 ? '🍢 +' + o.hunger : '⏱ ' + o.hunger}</span>` : '';
-    const grudge = o.grudge ? '<span class="tag down">💢</span>' : '';
-    return `<button class="opt" data-action="choose" data-idx="${i}" style="--i:${i}"><span class="opt-key">${'ABC'[i]}</span><span class="opt-text">${o.text}</span>${hunger || grudge ? `<span class="tags">${hunger}${grudge}</span>` : ''}</button>`;
+    const eff = effectTags(state, o, sc.npc);
+    const hunger = o.hunger ? `<span class="tag hunger" title="${o.hunger > 0 ? '顺手吃一口，饥饿回一点' : '聊得久，饿得更快'}">🍚 ${fmt(o.hunger)}</span>` : '';
+    const grudge = o.grudge ? '<span class="tag grudge" title="TA 会记仇">💢</span>' : '';
+    return `<button class="opt" data-action="choose" data-idx="${i}" style="--i:${i}"><span class="opt-key">${'ABC'[i]}</span><span class="opt-text">${o.text}</span>${eff || hunger || grudge ? `<span class="tags">${eff}${hunger}${grudge}</span>` : ''}</button>`;
   }).join('');
   const intrusion = state.scene.beat > 0 && state.scene.intruder && state.scene.intrusionLine
     ? `<div class="intrusion">⚠ ${state.scene.intrusionLine}</div>` : '';
@@ -423,7 +437,18 @@ function renderTitle(ctx) {
       <button class="btn ${ctx.hasSave ? '' : 'primary'} wide" data-action="start">下班了，回家吃饭${ctx.progress?.selected ? ` · Lv${ctx.progress.selected}` : ''}</button>
       <label class="seed"><span>种子（可选）</span><input id="seed-input" inputmode="numeric" placeholder="留空随机"></label>
     </div>
-    <div class="howto">几秒内选一句话。三招：<b>装透明</b>溜走、<b>支走</b>转移威胁、<b>装忙</b>本句不升温；道具攻防补时；场景里偶尔有<b>事件牌</b>，一次性特殊手牌；每局 2 条<b>今日词条</b>改变规则。赢一局解锁更难的<b>饭点危机</b>等级，共 ${MAX_LEVEL} 级。</div>
+    <div class="howto">
+      <div class="howto-head">怎么玩 · 三步</div>
+      <ol class="howto-steps">
+        <li><span class="hs-n">1</span><div><b>看条</b><div class="hs-bar"><i class="c"></i><i class="s"></i><i class="h"></i><em></em></div><small>每个人都有一根注意力条。让黑线停在中间<span class="t-safe">绿色「刚好」</span>：<span class="t-hot">太热</span>会拉住你聊到饭凉，<span class="t-cold">太冷</span>会记仇回头找你。</small></div></li>
+        <li><span class="hs-n">2</span><div><b>选话</b><div class="hs-tags"><span class="tag eff warm">老板↑↑</span><span class="tag eff cool">老板↓</span><span class="tag eff warm other">小张↑</span></div><small>选项后面的箭头告诉你这句会让谁<span class="t-hot">升温↑</span>还是<span class="t-cold">降温↓</span>。热的人就冷淡点，冷的人哄两句。几秒内不选会慌，随口乱说。</small></div></li>
+        <li><span class="hs-n">3</span><div><b>回家吃饭</b><div class="hs-hunger">🍚<i></i></div><small>饥饿条是你的血。被拉住、被找麻烦都会掉，撑到 19:35 回家就赢。</small></div></li>
+      </ol>
+      <details class="howto-more"><summary>进阶玩法</summary>
+        <p>卡住了用三招：<b>装透明</b>直接溜走、<b>支走</b>把注意力甩给别人、<b>装忙</b>跳过一句。路人那儿能捡<b>道具</b>；场景里偶尔有一次性<b>事件牌</b>；每局 2 条<b>今日词条</b>改规则。赢一局解锁更难的<b>饭点危机</b>，共 ${MAX_LEVEL} 级。</p>
+        <button class="btn link" data-action="reset-tips">重看新手引导</button>
+      </details>
+    </div>
     <div class="cast">
       ${NPC_ORDER.map(id => `<div class="cast-item" title="${NPCS[id].traitText}">${sprite(id, 50, 'sm')}<b>${NPCS[id].name}</b></div>`).join('')}
     </div>
