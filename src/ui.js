@@ -426,7 +426,7 @@ function renderTitle(ctx) {
   return `<section class="screen title">
     <canvas class="petals" aria-hidden="true"></canvas>
     <div class="title-eyebrow">Project: Belly First · 反向恋爱养成</div>
-    <h1 class="logo">别看我<br>我要吃饭</h1>
+    <h1 class="logo">食为天</h1>
     <div class="subtitle">别理我，饭要凉了</div>
     <div class="goal">【今日目标：谁都别拦我，回家吃饭】</div>
     <p class="tagline">恋爱游戏是让所有人都喜欢你。这里反过来：谁多看你一眼，你就晚吃一口。把每个人的注意力都维持在「刚好」，偷感拉满，溜回家吃饭。<small>牛马下班实录 · 松弛感模拟器</small></p>
@@ -452,6 +452,6 @@ function renderTitle(ctx) {
     <div class="cast">
       ${NPC_ORDER.map(id => `<div class="cast-item" title="${NPCS[id].traitText}">${sprite(id, 50, 'sm')}<b>${NPCS[id].name}</b></div>`).join('')}
     </div>
-    <p class="credit">《别看我，我要吃饭》v0.4 可玩原型 · 方向 ③「反向恋爱养成」· ${SCHEDULE.length} 个时段 · 音效与音乐 ${ctx.muted ? '关' : '开'}（点 🔊 切换）</p>
+    <p class="credit">《食为天》v0.4 可玩原型 · 方向 ③「反向恋爱养成」· ${SCHEDULE.length} 个时段 · 音效与音乐 ${ctx.muted ? '关' : '开'}（点 🔊 切换）</p>
   </section>`;
 }
