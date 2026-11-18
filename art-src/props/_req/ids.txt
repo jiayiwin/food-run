@@ -1,0 +1,17 @@
+trike 49df38aa-602d-450f-9c1c-5c34f8217c65
+sheet 98402d2d-9fcc-435c-8584-bb6161292979
+bin c9836e49-f422-48d9-9006-22bdaf73ee41
+parcel bc411a06-7ee0-47d0-9ed2-53c5072ac437
+ebikeHall 6dbeb288-e1c4-4253-ad7d-c3f35d810455
+store 573d3a38-b7b2-4ebc-ad57-82793c952696
+gateBooth 8cb535ab-2a5f-46a3-b86a-c283a21a30c7
+gate_street 9efb9c33-1b8e-4346-9a94-ce2060b9d850
+gate_park 93dc7220-5247-400a-a180-c60766b87fe2
+gate_home 2cf94923-8272-42a5-931f-141fb76d91d1
+desk 153909f7-f983-4eec-8e9c-33393c41a1f4
+homeDoor 561edcaf-6059-415c-810c-a96bae161410
+meal_hongshaorou c8baffbe-8555-4de4-9b84-8b0649f75e68
+meal_tomatoegg 94f8a26b-63ba-46a1-93be-263082e9e7bb
+meal_leftovers 33323fa6-f501-4b39-be6e-a3b5b2d99be4
+meal_noodles d177eb46-8dbb-47a7-b601-4a54f1fdfc4c
+meal_takeout 2dd1a7c4-cf88-4e09-82c6-3a6c2dc75dc1

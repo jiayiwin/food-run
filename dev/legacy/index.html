@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>狂奔吧，打工人 · 浏览器调试</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1d1b26; overflow: hidden; overscroll-behavior: none; }
+  body { display: flex; align-items: center; justify-content: center; }
+  canvas { box-shadow: 0 0 0 1px #0004, 0 20px 60px #0008; }
+</style>
+</head>
+<body>
+<!-- 先装上 wx 适配层，再按微信小游戏的入口加载同一份代码 -->
+<script src="../wx-shim.js"></script>
+<script type="module">
+  // ?art=/path/manifest.json：用另一份美术清单覆盖（对比风格用）
+  const artUrl = new URLSearchParams(location.search).get("art");
+  if (artUrl) { try { window.__ART_OVERRIDE = await (await fetch(artUrl)).json(); } catch (e) { console.warn("art manifest", e); } }
+  if (/gallery/.test(location.search)) import("./gallery.js"); else if (/scenery/.test(location.search)) import("./scenery.js"); else if (/props/.test(location.search)) import("./props.js"); else import("./game.js");
+</script>
+</body>
+</html>

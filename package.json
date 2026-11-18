@@ -1,12 +1,17 @@
 {
-  "name": "bellyfirst",
+  "name": "kuangben-dagongren",
   "version": "0.1.0",
-  "description": "《今天必须吃到饭》—— Roguelike 卡牌，下班回家吃饭模拟器",
+  "description": "《狂奔吧，打工人》微信小游戏：跑酷 + 实时二选一",
   "type": "module",
   "private": true,
   "scripts": {
     "dev": "node tools/serve.js 5173",
     "test": "node --test test/*.test.js"
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@pixi/unsafe-eval": "^7.4.2",
+    "esbuild": "^0.24.0",
+    "pixi.js": "^7.4.2"
+  }
 }

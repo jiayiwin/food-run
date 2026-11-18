@@ -1,0 +1,60 @@
+{
+  "description": "狂奔吧，打工人",
+  "compileType": "game",
+  "appid": "touristappid",
+  "projectname": "kuangben-dagongren",
+  "libVersion": "3.3.4",
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "postcss": false,
+    "minified": true,
+    "urlCheck": false,
+    "ignoreDevUnusedFiles": true
+  },
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "dev"
+      },
+      {
+        "type": "folder",
+        "value": "tools"
+      },
+      {
+        "type": "folder",
+        "value": "test"
+      },
+      {
+        "type": "folder",
+        "value": "docs"
+      },
+      {
+        "type": "file",
+        "value": "package.json"
+      },
+      {
+        "type": "file",
+        "value": "package-lock.json"
+      },
+      {
+        "type": "file",
+        "value": "README.md"
+      },
+      {
+        "type": "folder",
+        "value": "art-src"
+      },
+      {
+        "type": "folder",
+        "value": ".deck"
+      },
+      {
+        "type": "folder",
+        "value": "node_modules"
+      }
+    ]
+  },
+  "condition": {}
+}

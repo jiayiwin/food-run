@@ -1,3 +1,10 @@
 node_modules/
 .deck/
 *.log
+dev/art-candidates/
+art-src/**/*_raw.png
+art-src/**/*.json
+!art-src/spec.json
+art-src/**/v/
+__pycache__/
+*.pyc

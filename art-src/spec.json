@@ -1,0 +1,759 @@
+{
+ "dpr": 2,
+ "out": "art",
+ "base": "art/",
+ "manifest": "js/data/art.js",
+ "bg": {
+  "office": {
+   "far": {
+    "src": "art-src/bg/far_street.png",
+    "h": 190,
+    "par": 0.15,
+    "dy": -70
+   },
+   "mid": {
+    "modules": [
+     {
+      "src": "art-src/bg/office_mid_1/part_*.png",
+      "h": 150
+     },
+     {
+      "src": "art-src/bg/office_mid_2/part_*.png",
+      "h": 150
+     }
+    ],
+    "h": 150,
+    "par": 0.5,
+    "gap": [
+     0,
+     0
+    ],
+    "backdrop": "#efe3f5"
+   }
+  },
+  "street": {
+   "far": {
+    "src": "art-src/bg/far_street.png",
+    "h": 190,
+    "par": 0.15,
+    "dy": -70
+   },
+   "mid": {
+    "modules": [
+     {
+      "src": "art-src/bg/street_mid_1/module_*.png",
+      "h": 235
+     },
+     {
+      "src": "art-src/bg/street_mid_2/part_*.png",
+      "h": 250
+     },
+     {
+      "src": "art-src/bg/street_mid_3/part_*.png",
+      "h": 245
+     }
+    ],
+    "h": 250,
+    "par": 0.5,
+    "gap": [
+     2,
+     26
+    ]
+   }
+  },
+  "park": {
+   "far": {
+    "src": "art-src/bg/far_park.png",
+    "h": 200,
+    "par": 0.15,
+    "dy": -60
+   },
+   "mid": {
+    "modules": [
+     {
+      "src": "art-src/bg/park_mid_1_modules/part_*.png",
+      "h": 260
+     },
+     {
+      "src": "art-src/bg/park_mid_2_modules/part_*.png",
+      "h": 260
+     }
+    ],
+    "h": 260,
+    "par": 0.5,
+    "gap": [
+     8,
+     40
+    ]
+   }
+  },
+  "home": {
+   "far": {
+    "src": "art-src/bg/far_park.png",
+    "h": 200,
+    "par": 0.15,
+    "dy": -60
+   },
+   "mid": {
+    "modules": [
+     {
+      "src": "art-src/bg/home_mid_1_modules/part_*.png",
+      "h": 118
+     },
+     {
+      "src": "art-src/bg/home_mid_2_modules/part_*.png",
+      "h": 140
+     }
+    ],
+    "h": 140,
+    "par": 0.5,
+    "gap": [
+     10,
+     36
+    ],
+    "backdrop": "#f1e2c6"
+   }
+  }
+ },
+ "props": {
+  "filebox": {
+   "src": "art-src/props/filebox.png",
+   "w": 34,
+   "h": 36,
+   "ox": -1
+  },
+  "chair": {
+   "src": "art-src/props/chair.png",
+   "w": 32,
+   "h": 40,
+   "ox": 2
+  },
+  "banner": {
+   "src": "art-src/props/banner.png",
+   "w": 90,
+   "h": 107,
+   "oy": -48
+  },
+  "wetsign": {
+   "src": "art-src/props/wetsign.png",
+   "w": 25,
+   "h": 40,
+   "ox": -0.5
+  },
+  "puddle": {
+   "src": "art-src/props/puddle.png",
+   "w": 56,
+   "h": 8,
+   "oy": 2
+  },
+  "cone": {
+   "src": "art-src/props/cone.png",
+   "w": 25,
+   "h": 36,
+   "ox": -0.5
+  },
+  "shopbar": {
+   "src": "art-src/props/shopbar.png",
+   "w": 72,
+   "h": 86,
+   "ox": -1,
+   "oy": -48
+  },
+  "step": {
+   "src": "art-src/props/step_fit.png",
+   "w": 160,
+   "h": 40
+  },
+  "scaffold": {
+   "src": "art-src/props/scaffold.png",
+   "crop": [
+    0,
+    0,
+    1,
+    0.925
+   ],
+   "w": 99.5,
+   "ox": -9.75,
+   "oy": -48
+  },
+  "manhole": {
+   "src": "art-src/props/manhole.png",
+   "w": 108,
+   "oy": 5
+  },
+  "warnSign": {
+   "src": "art-src/props/warnSign.png",
+   "w": 23,
+   "h": 40
+  },
+  "coin": {
+   "src": "art-src/props/coin.png",
+   "w": 14,
+   "h": 14,
+   "ox": -7,
+   "oy": 7
+  },
+  "bun": {
+   "src": "art-src/props/bun.png",
+   "w": 24,
+   "h": 19,
+   "ox": -12,
+   "oy": 9.5
+  },
+  "trike": {
+   "src": "art-src/props/trike.png",
+   "w": 86,
+   "h": 50,
+   "ox": -7
+  },
+  "sheet": {
+   "src": "art-src/props/sheet_fit.png",
+   "w": 159,
+   "h": 124,
+   "ox": -29.5
+  },
+  "bin": {
+   "src": "art-src/props/bin.png",
+   "w": 26,
+   "h": 46,
+   "ox": 2
+  },
+  "parcel": {
+   "src": "art-src/props/parcel.png",
+   "w": 53,
+   "h": 34,
+   "ox": -6.5
+  },
+  "ebikeHall": {
+   "src": "art-src/props/ebikeHall.png",
+   "w": 72,
+   "h": 46,
+   "ox": -4
+  },
+  "store": {
+   "src": "art-src/props/store.png",
+   "w": 195,
+   "h": 160,
+   "ox": -70
+  },
+  "gateBooth": {
+   "src": "art-src/props/gateBooth_body.png",
+   "w": 87,
+   "h": 109.5,
+   "ox": -1
+  },
+  "gateArm": {
+   "src": "art-src/props/gateBooth_arm.png",
+   "w": 70,
+   "h": 12.6,
+   "ox": -64.3,
+   "oy": 6.3
+  },
+  "gate_street": {
+   "src": "art-src/props/gate_street.png",
+   "w": 142,
+   "h": 170,
+   "ox": -71
+  },
+  "gate_park": {
+   "src": "art-src/props/gate_park.png",
+   "w": 195,
+   "h": 190,
+   "ox": -97.5
+  },
+  "gate_home": {
+   "src": "art-src/props/gate_home.png",
+   "w": 85,
+   "h": 170,
+   "ox": -42.5
+  },
+  "desk": {
+   "src": "art-src/props/desk.png",
+   "w": 110,
+   "h": 84,
+   "ox": -150
+  },
+  "homeDoor": {
+   "src": "art-src/props/homeDoor.png",
+   "w": 67,
+   "h": 140,
+   "ox": -3
+  },
+  "leash": {
+   "src": "art-src/hero-extras/leash_short.png",
+   "h": 52,
+   "ox": -26
+  },
+  "scooter": {
+   "src": "art-src/hero-extras/scooter.png",
+   "w": 33.3,
+   "h": 52,
+   "ox": -1.65
+  },
+  "bike": {
+   "src": "art-src/hero-extras/bike.png",
+   "w": 66,
+   "ox": -3
+  },
+  "rider": {
+   "src": "art-src/hero-extras/rider.png",
+   "w": 82.5,
+   "h": 90
+  },
+  "meal_hongshaorou": {
+   "src": "art-src/props/meal_hongshaorou.png",
+   "w": 96
+  },
+  "meal_tomatoegg": {
+   "src": "art-src/props/meal_tomatoegg.png",
+   "w": 96
+  },
+  "meal_leftovers": {
+   "src": "art-src/props/meal_leftovers.png",
+   "w": 96
+  },
+  "meal_noodles": {
+   "src": "art-src/props/meal_noodles.png",
+   "w": 84
+  },
+  "meal_takeout": {
+   "src": "art-src/props/meal_takeout.png",
+   "w": 96
+  }
+ },
+ "chars": {
+  "player": {
+   "parts": {
+    "head": "art-src/hero-extras/parts/head.png",
+    "torso": "art-src/hero-extras/parts/torso.png",
+    "armU": "art-src/hero-extras/parts/part_02.png",
+    "armL": "art-src/hero-extras/parts/forearm.png",
+    "legU": "art-src/hero-extras/parts/thigh.png",
+    "legL": "art-src/hero-extras/parts/shin.png",
+    "shoe": "art-src/hero-extras/parts/shoe.png"
+   },
+   "heads": {
+    "normal": "art-src/hero-extras/heads/normal.png",
+    "panic": "art-src/hero-extras/heads/panic.png",
+    "happy": "art-src/hero-extras/heads/happy.png"
+   },
+   "pivots": {
+    "head": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "normal": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "panic": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "happy": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "torso": [
+     0.62,
+     0.96,
+     0.84
+    ],
+    "shoe": [
+     0.28,
+     0.75
+    ]
+   }
+  },
+  "laoliu": {
+   "parts": {
+    "head": "art-src/chars/laoliu/parts/part_00.png",
+    "torso": "art-src/chars/laoliu/parts/part_01.png",
+    "armU": "art-src/chars/laoliu/parts/part_02.png",
+    "armL": "art-src/chars/laoliu/parts/part_03.png",
+    "legU": "art-src/chars/laoliu/parts/part_04.png",
+    "legL": "art-src/chars/laoliu/parts/part_05.png",
+    "shoe": "art-src/chars/laoliu/parts/part_06.png"
+   },
+   "heads": {
+    "normal": "art-src/chars/laoliu/heads/part_00.png",
+    "angry": "art-src/chars/laoliu/heads/part_01.png",
+    "happy": "art-src/chars/laoliu/heads/part_02.png"
+   },
+   "pivots": {
+    "head": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "normal": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "angry": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "happy": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "torso": [
+     0.5,
+     0.96,
+     0.84
+    ],
+    "shoe": [
+     0.28,
+     0.75
+    ]
+   }
+  },
+  "ajie": {
+   "parts": {
+    "head": "art-src/chars/ajie/parts/part_00.png",
+    "torso": "art-src/chars/ajie/parts/part_01.png",
+    "armU": "art-src/chars/ajie/parts/part_02.png",
+    "armL": "art-src/chars/ajie/parts/part_03.png",
+    "legU": "art-src/chars/ajie/parts/part_04.png",
+    "legL": "art-src/chars/ajie/parts/part_05.png",
+    "shoe": "art-src/chars/ajie/parts/part_06.png"
+   },
+   "heads": {
+    "normal": "art-src/chars/ajie/heads/part_00.png",
+    "angry": "art-src/chars/ajie/heads/part_01.png",
+    "happy": "art-src/chars/ajie/heads/part_02.png"
+   },
+   "pivots": {
+    "head": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "normal": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "angry": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "happy": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "torso": [
+     0.5,
+     0.96,
+     0.84
+    ],
+    "shoe": [
+     0.28,
+     0.75
+    ]
+   }
+  },
+  "lili": {
+   "parts": {
+    "head": "art-src/chars/lili/parts/part_00.png",
+    "torso": "art-src/chars/lili/parts/part_01.png",
+    "armU": "art-src/chars/lili/parts/part_03.png",
+    "armL": "art-src/chars/lili/parts/part_02.png",
+    "legU": "art-src/chars/lili/parts/part_04.png",
+    "legL": "art-src/chars/lili/parts/part_05.png",
+    "shoe": "art-src/chars/lili/parts/part_06.png"
+   },
+   "heads": {
+    "normal": "art-src/chars/lili/heads/part_00.png",
+    "angry": "art-src/chars/lili/heads/part_01.png",
+    "happy": "art-src/chars/lili/heads/part_02.png"
+   },
+   "pivots": {
+    "head": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "normal": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "angry": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "happy": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "torso": [
+     0.5,
+     0.96,
+     0.84
+    ],
+    "shoe": [
+     0.28,
+     0.75
+    ]
+   }
+  },
+  "tony": {
+   "parts": {
+    "head": "art-src/chars/tony/parts/part_00.png",
+    "torso": "art-src/chars/tony/parts/part_01.png",
+    "armU": "art-src/chars/tony/parts/part_02.png",
+    "armL": "art-src/chars/tony/parts/part_03.png",
+    "legU": "art-src/chars/tony/parts/part_04.png",
+    "legL": "art-src/chars/tony/parts/part_05.png",
+    "shoe": "art-src/chars/tony/parts/part_06.png"
+   },
+   "heads": {
+    "normal": "art-src/chars/tony/heads/part_00.png",
+    "angry": "art-src/chars/tony/heads/part_01.png",
+    "happy": "art-src/chars/tony/heads/part_02.png"
+   },
+   "pivots": {
+    "head": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "normal": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "angry": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "happy": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "torso": [
+     0.5,
+     0.96,
+     0.84
+    ],
+    "shoe": [
+     0.28,
+     0.75
+    ]
+   }
+  },
+  "amy": {
+   "parts": {
+    "head": "art-src/chars/amy/parts/part_00.png",
+    "torso": "art-src/chars/amy/parts/part_01.png",
+    "armU": "art-src/chars/amy/parts/part_02.png",
+    "armL": "art-src/chars/amy/parts/part_03.png",
+    "legU": "art-src/chars/amy/parts/part_04.png",
+    "legL": "art-src/chars/amy/parts/part_05.png",
+    "shoe": "art-src/chars/amy/parts/part_06.png"
+   },
+   "heads": {
+    "normal": "art-src/chars/amy/heads/part_00.png",
+    "angry": "art-src/chars/amy/heads/part_01.png",
+    "happy": "art-src/chars/amy/heads/part_02.png"
+   },
+   "pivots": {
+    "head": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "normal": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "angry": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "happy": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "torso": [
+     0.5,
+     0.96,
+     0.84
+    ],
+    "shoe": [
+     0.28,
+     0.75
+    ],
+    "armL": [
+     0.47,
+     0.1,
+     0.73
+    ]
+   }
+  },
+  "wang": {
+   "parts": {
+    "head": "art-src/chars/wang/parts/part_00.png",
+    "torso": "art-src/chars/wang/parts/part_01.png",
+    "armU": "art-src/chars/wang/parts/part_02.png",
+    "armL": "art-src/chars/wang/parts/part_03.png",
+    "legU": "art-src/chars/wang/parts/part_04.png",
+    "legL": "art-src/chars/wang/parts/part_05.png",
+    "shoe": "art-src/chars/wang/parts/part_06.png"
+   },
+   "heads": {
+    "normal": "art-src/chars/wang/heads/part_00.png",
+    "angry": "art-src/chars/wang/heads/part_01.png",
+    "happy": "art-src/chars/wang/heads/part_02.png"
+   },
+   "pivots": {
+    "head": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "normal": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "angry": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "happy": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "torso": [
+     0.5,
+     0.96,
+     0.84
+    ],
+    "shoe": [
+     0.28,
+     0.75
+    ]
+   }
+  },
+  "zhou": {
+   "parts": {
+    "head": "art-src/chars/zhou/parts/part_00.png",
+    "torso": "art-src/chars/zhou/parts/part_01.png",
+    "armU": "art-src/chars/zhou/parts/part_02.png",
+    "armL": "art-src/chars/zhou/parts/part_03.png",
+    "legU": "art-src/chars/zhou/parts/part_04.png",
+    "legL": "art-src/chars/zhou/parts/part_05.png",
+    "shoe": "art-src/chars/zhou/parts/part_06.png"
+   },
+   "heads": {
+    "normal": "art-src/chars/zhou/heads/part_00.png",
+    "angry": "art-src/chars/zhou/heads/part_01.png",
+    "happy": "art-src/chars/zhou/heads/part_02.png"
+   },
+   "pivots": {
+    "head": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "normal": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "angry": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "happy": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "torso": [
+     0.5,
+     0.96,
+     0.84
+    ],
+    "shoe": [
+     0.28,
+     0.75
+    ]
+   }
+  },
+  "mom": {
+   "parts": {
+    "head": "art-src/chars/mom/parts/part_00.png",
+    "torso": "art-src/chars/mom/parts/part_01.png",
+    "armU": "art-src/chars/mom/parts/part_02.png",
+    "armL": "art-src/chars/mom/parts/part_03.png",
+    "legU": "art-src/chars/mom/parts/part_04.png",
+    "legL": "art-src/chars/mom/parts/part_05.png",
+    "shoe": "art-src/chars/mom/parts/part_06.png"
+   },
+   "heads": {
+    "normal": "art-src/chars/mom/heads/part_00.png",
+    "angry": "art-src/chars/mom/heads/part_01.png",
+    "happy": "art-src/chars/mom/heads/part_02.png"
+   },
+   "pivots": {
+    "head": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "normal": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "angry": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "happy": [
+     0.58,
+     0.56,
+     0.34
+    ],
+    "torso": [
+     0.5,
+     0.96,
+     0.84
+    ],
+    "shoe": [
+     0.28,
+     0.75
+    ],
+    "armL": [
+     0.5,
+     0.112,
+     0.36
+    ]
+   }
+  }
+ }
+}
