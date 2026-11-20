@@ -5,7 +5,9 @@ import { makeBot } from '../js/game/bot.js';
 import { MODIFIERS, modifierOf } from '../js/data/modifiers.js';
 import { ALBUM, ALBUM_KEYS, albumCount } from '../js/data/album.js';
 import { NPCS, MOM } from '../js/data/npcs.js';
+import { MEMBERS, doorQuestionsBy } from '../js/data/family.js';
 import { RES, CHOICE } from '../js/data/tune.js';
+import { LEVELS, LEVEL_ORDER } from '../js/data/levels.js';
 
 function play(opts, cfg = { skill: 1, choose: 'good', think: 0.6 }) {
   let r = 0x2545f491 ^ (opts.seed * 7919);
@@ -60,12 +62,23 @@ test('周一综合征：读题时间变短，但不低于下限', () => {
   assert.ok(hard[0].T < base[0].T);
 });
 
-test('借口图鉴：目录覆盖所有人的所有回答，没有重复', () => {
+test('借口图鉴：目录覆盖所有人的所有回答，没有重复（家里人一人一页：妈妈、爸爸、大鹏、橘子、朵朵、姥姥、奶奶）', () => {
   const total = Object.values(NPCS).reduce((n, v) => n + new Set(v.questions.flatMap(q => q.opts.map(o => o.text))).size, 0)
-    + new Set(Object.values(MOM.questions).flatMap(q => q.opts.map(o => o.text))).size;
+    + Object.keys(MEMBERS).reduce((n, id) => n + new Set(Object.values(doorQuestionsBy(id)).flatMap(q => q.opts.map(o => o.text))).size, 0);
   assert.equal(ALBUM_KEYS.size, total);
-  assert.equal(ALBUM.length, Object.keys(NPCS).length + 1);
+  assert.equal(ALBUM.length, Object.keys(NPCS).length + Object.keys(MEMBERS).length);
+  assert.ok(Object.keys(MOM.questions).length >= 11, '妈妈的门口题：爸妈家平常日 + 关卡 + 酱油');
   assert.deepEqual(albumCount(new Set()), { got: 0, total });
+});
+
+test('一周通勤文案：追逐槽台词 ≤14 字，关名、新东西、星的目标、提示 ≤14 字', () => {
+  for (const id of LEVEL_ORDER) {
+    const d = LEVELS[id];
+    for (const s of d.slots.filter(s => s.kind === 'chase')) assert.ok([...s.line].length <= 14, `${id} 追逐槽：${s.line}`);
+    for (const s of [d.name, d.sub, d.tip3, ...d.stars.map(x => x.text)]) assert.ok([...s].length <= 14, `${id}：${s}`);
+    assert.ok([...d.short].length <= 3, d.short);
+  }
+  for (const s of ['被追了：右滑冲刺！', '点一下：关门！', '闪绿灯：右滑冲过去！', '挨白眼了', '带薪摸鱼', '摸鱼中']) assert.ok([...s].length <= 14, s);
 });
 
 test('借口图鉴：跑一局说过的话都记下来，能对上目录', () => {

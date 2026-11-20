@@ -1,0 +1,343 @@
+{
+ "props": {
+  "filebox": {
+   "bytes": 1818,
+   "hueSector": 7
+  },
+  "chair": {
+   "bytes": 2231,
+   "hueSector": 10
+  },
+  "banner": {
+   "bytes": 6862,
+   "hueSector": 11
+  },
+  "wetsign": {
+   "bytes": 2454,
+   "hueSector": 1
+  },
+  "puddle": {
+   "bytes": 1753,
+   "hueSector": 6
+  },
+  "cone": {
+   "bytes": 2115,
+   "hueSector": 0
+  },
+  "shopbar": {
+   "bytes": 5187,
+   "hueSector": 0
+  },
+  "step": {
+   "bytes": 3396,
+   "hueSector": null
+  },
+  "scaffold": {
+   "bytes": 13957,
+   "hueSector": 5
+  },
+  "manhole": {
+   "bytes": 3056,
+   "hueSector": null
+  },
+  "warnSign": {
+   "bytes": 2001,
+   "hueSector": 1
+  },
+  "coin": {
+   "bytes": 1697,
+   "hueSector": 1
+  },
+  "bun": {
+   "bytes": 1878,
+   "hueSector": null
+  },
+  "trike": {
+   "bytes": 4696,
+   "hueSector": 7
+  },
+  "sheet": {
+   "bytes": 10763,
+   "hueSector": 6
+  },
+  "bin": {
+   "bytes": 2313,
+   "hueSector": 3
+  },
+  "parcel": {
+   "bytes": 2269,
+   "hueSector": 1
+  },
+  "ebikeHall": {
+   "bytes": 5624,
+   "hueSector": 1
+  },
+  "store": {
+   "bytes": 25554,
+   "hueSector": 7
+  },
+  "gateBooth": {
+   "bytes": 5321,
+   "hueSector": 5
+  },
+  "gateArm": {
+   "bytes": 2006,
+   "hueSector": 11
+  },
+  "gate_street": {
+   "bytes": 15062,
+   "hueSector": 6
+  },
+  "gate_park": {
+   "bytes": 14928,
+   "hueSector": 0
+  },
+  "gate_home": {
+   "bytes": 8522,
+   "hueSector": 0
+  },
+  "desk": {
+   "bytes": 5605,
+   "hueSector": 0
+  },
+  "homeDoor": {
+   "bytes": 4419,
+   "hueSector": 0
+  },
+  "leash": {
+   "bytes": 2175,
+   "hueSector": 2
+  },
+  "leashLady": {
+   "bytes": 2929,
+   "hueSector": 0
+  },
+  "scooter": {
+   "bytes": 3797,
+   "hueSector": 0
+  },
+  "bike": {
+   "bytes": 4615,
+   "hueSector": 6
+  },
+  "rider": {
+   "bytes": 8395,
+   "hueSector": 0
+  },
+  "car_sedan": {
+   "bytes": 6159,
+   "hueSector": null
+  },
+  "car_taxi": {
+   "bytes": 5780,
+   "hueSector": 1
+  },
+  "car_suv": {
+   "bytes": 6393,
+   "hueSector": null
+  },
+  "car_van": {
+   "bytes": 5764,
+   "hueSector": null
+  },
+  "carParked": {
+   "bytes": 4825,
+   "hueSector": null
+  },
+  "cardoor": {
+   "bytes": 2807,
+   "hueSector": null
+  },
+  "carFront": {
+   "bytes": 3942,
+   "hueSector": 1
+  },
+  "liftHall": {
+   "bytes": 5647,
+   "hueSector": null
+  },
+  "liftLeaf": {
+   "bytes": 2898,
+   "hueSector": null
+  },
+  "liftCab": {
+   "bytes": 39536,
+   "hueSector": null
+  },
+  "mop": {
+   "bytes": 2476,
+   "hueSector": 1
+  },
+  "stairsWall0": {
+   "bytes": 4716,
+   "hueSector": 11
+  },
+  "stairsWall1": {
+   "bytes": 3695,
+   "hueSector": null
+  },
+  "stairsWall2": {
+   "bytes": 2794,
+   "hueSector": null
+  },
+  "meal_hongshaorou": {
+   "bytes": 11988,
+   "hueSector": 0
+  },
+  "meal_tomatoegg": {
+   "bytes": 12989,
+   "hueSector": 0
+  },
+  "meal_leftovers": {
+   "bytes": 9114,
+   "hueSector": null
+  },
+  "meal_noodles": {
+   "bytes": 11110,
+   "hueSector": 0
+  },
+  "meal_takeout": {
+   "bytes": 9668,
+   "hueSector": 1
+  },
+  "meal_malatang": {
+   "bytes": 15028,
+   "hueSector": 0
+  },
+  "meal_hotpot": {
+   "bytes": 13047,
+   "hueSector": 0
+  },
+  "meal_dumplings": {
+   "bytes": 11238,
+   "hueSector": 6
+  },
+  "meal_feast": {
+   "bytes": 12197,
+   "hueSector": 0
+  },
+  "juzi_sit": {
+   "bytes": 2873,
+   "hueSector": 0
+  },
+  "juzi_meow": {
+   "bytes": 2906,
+   "hueSector": 0
+  },
+  "juzi_rub": {
+   "bytes": 3310,
+   "hueSector": 0
+  },
+  "spouse_wife": {
+   "bytes": 3660,
+   "hueSector": 0
+  },
+  "spouse_husband": {
+   "bytes": 3600,
+   "hueSector": 6
+  },
+  "errandBox": {
+   "bytes": 1740,
+   "hueSector": 1
+  }
+ },
+ "bg": {
+  "office": {
+   "sMean": 0.211,
+   "hiSatBright": 0.041,
+   "ink": 0.0,
+   "hueBand": [
+    0.021,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.031,
+    0.034,
+    0.0,
+    0.001,
+    0.0,
+    0.0,
+    0.001
+   ],
+   "veil": {
+    "color": "#341E60",
+    "alpha": 0,
+    "fog": {
+     "color": "#EFE3F5",
+     "alpha": 0.12,
+     "h": 70
+    }
+   }
+  },
+  "street": {
+   "sMean": 0.285,
+   "hiSatBright": 0.015,
+   "ink": 0.006,
+   "hueBand": [
+    0.082,
+    0.02,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.035,
+    0.004,
+    0.0,
+    0.003,
+    0.003,
+    0.056
+   ],
+   "veil": {
+    "color": "#341E60",
+    "alpha": 0.2
+   }
+  },
+  "park": {
+   "sMean": 0.273,
+   "hiSatBright": 0.011,
+   "ink": 0.016,
+   "hueBand": [
+    0.021,
+    0.013,
+    0.0,
+    0.0,
+    0.0,
+    0.033,
+    0.06,
+    0.017,
+    0.0,
+    0.0,
+    0.005,
+    0.093
+   ],
+   "veil": {
+    "color": "#341E60",
+    "alpha": 0.22
+   }
+  },
+  "home": {
+   "sMean": 0.338,
+   "hiSatBright": 0.004,
+   "ink": 0.029,
+   "hueBand": [
+    0.467,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.001,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.01
+   ],
+   "veil": {
+    "color": "#3A2A40",
+    "alpha": 0.22
+   }
+  }
+ }
+}

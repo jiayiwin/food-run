@@ -8,3 +8,7 @@ art-src/**/*.json
 art-src/**/v/
 __pycache__/
 *.pyc
+tmp-shots/
+*.tgz
+Thumbs.db
+.DS_Store

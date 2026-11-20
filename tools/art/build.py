@@ -1,4 +1,4 @@
-"""美术资源管线：把AI 绘图工具出的原图加工成游戏能直接用的图集和清单。
+"""美术资源管线：把 AI 出图的原图加工成游戏能直接用的图集和清单。
 
 用法（在项目根目录）：
   python tools/art/build.py clean  <in.png> <out.png>                 去透明底光晕、去碎屑、裁到内容
@@ -18,6 +18,16 @@ spec.json（相对项目根目录的路径）：
 }
 四肢图会自动转成竖直（主轴朝下），枢轴放在上端；头的枢轴默认在包围盒中心偏下，r 取宽度的 42%。
 pivots 可手动覆盖：四肢 [px, py, len]（比例，相对部件包围盒），头 [px, py, r]，躯干 [px, py, len]。
+
+可读性后处理（都不用重新出图）：
+  道具  "rim": "ground" | "float"     米白外圈（顶层 rimPx / rimColor）；落地的底边不加，悬空的四边都加。清单写 rim、bbox
+        "fix": [{"op": "hue" | "desat" | "erase", ...}]   原图分辨率换色 / 去饱和 / 擦除
+        "post": [{"op": "rope" | "tread", ...}]          成品分辨率重画绳子 / 台阶踏步边
+        "grade": {"sat", "ink", "inkDark", "v"}          背景类道具调色
+        "hole" / "anchors" / "centerOn": "hole"          门洞、锚点（比例坐标换算成逻辑 px）
+  中景  "grade"（整层调色）、"veil"（抄 tune.js 的 VEIL，只用来算跳跃带）、"backdropFull"（整块铺墙）、"dy"（后人行道）
+        模块组 {"src", "h", "skip": [文件名], "fix": {文件名: [...]}}
+打包结束：删掉清单没引用的旧图；写 tools/art/report.json（主色扇区、跳跃带指标）；跳跃带超标直接报错；源图缺的条目跳过。
 """
 import json
 import math
@@ -121,25 +131,29 @@ def make_tileable(im, blend):
     return Image.fromarray((np.clip(res, 0, 1) * 255 + 0.5).astype(np.uint8), 'RGBA')
 
 
-def build_modules(sheets, outdir, stage, name, h_tallest, dpr=2):
-    """背景模块：每张表里切出独立的楼 / 墙面，同一张表统一缩放（最高的那块 = h_tallest 逻辑像素），底边对齐。"""
-    mods, total = [], 0
+def build_modules(sheets, outdir, stage, name, h_tallest, dpr=2, G=None):
+    """背景模块：每张表里切出独立的楼 / 墙面，同一张表统一缩放（最高的那块 = h_tallest 逻辑像素），底边对齐。
+    sheet 可以写成 {"src", "h", "skip": [文件名], "fix": {文件名: [fix 操作]}}：skip 剔除像障碍的假模块，fix 按文件修补。
+    G：整层调色（grade）。返回 (模块清单, 字节数, 调色后的图)，图给跳跃带统计用。"""
+    mods, total, ims = [], 0, []
     import glob as _glob
     for si, sheet in enumerate(sheets):
-        h_group = h_tallest
+        h_group, skip, fixes = h_tallest, set(), {}
         if isinstance(sheet, dict):      # {"src": 路径或通配符, "h": 这一组最高那块的逻辑高度}
-            h_group, sheet = sheet.get('h', h_tallest), sheet['src']
+            h_group, skip, fixes, sheet = sheet.get('h', h_tallest), set(sheet.get('skip', [])), sheet.get('fix', {}), sheet['src']
         if '*' in sheet:                 # 一组已经切好的模块图：同组统一缩放
-            files = sorted(_glob.glob(os.path.join(ROOT, sheet)))
-            ims = [crop_content(clean_alpha(Image.open(f), min_area_frac=0.0005), pad=0) for f in files]
-            if not ims:
+            files = [f for f in sorted(_glob.glob(os.path.join(ROOT, sheet))) if os.path.basename(f) not in skip]
+            group = [apply_fix(crop_content(clean_alpha(Image.open(f), min_area_frac=0.0005), pad=0), fixes.get(os.path.basename(f))) for f in files]
+            if not group:
                 continue
-            k = h_group * dpr / max(im.height for im in ims)
-            for mi, part in enumerate(ims):
+            k = h_group * dpr / max(im.height for im in group)
+            for mi, part in enumerate(group):
                 part = part.resize((max(1, round(part.width * k)), max(1, round(part.height * k))), Image.LANCZOS)
+                part = grade(part, G)
                 rel = f'bg/{stage}_{name}_{si}_{mi}.png'
                 total += save_png(part, os.path.join(outdir, rel))
                 mods.append({'src': rel, 'w': round(part.width / dpr, 1), 'h': round(part.height / dpr, 1)})
+                ims.append(part)
             continue
         im = clean_alpha(Image.open(os.path.join(ROOT, sheet)), min_area_frac=0.0005)
         a = np.asarray(im.getchannel('A')) > 8
@@ -153,10 +167,12 @@ def build_modules(sheets, outdir, stage, name, h_tallest, dpr=2):
         for mi, (_, (x0, y0, x1, y1), _) in enumerate(comps):
             part = crop_content(im.crop((x0, y0, x1, y1)), pad=0)
             part = part.resize((max(1, round(part.width * k)), max(1, round(part.height * k))), Image.LANCZOS)
+            part = grade(part, G)
             rel = f'bg/{stage}_{name}_{si}_{mi}.png'
             total += save_png(part, os.path.join(outdir, rel))
             mods.append({'src': rel, 'w': round(part.width / dpr, 1), 'h': round(part.height / dpr, 1)})
-    return mods, total
+            ims.append(part)
+    return mods, total, ims
 
 
 def gap_cut(im, search=0.3, thresh=0.04):
@@ -307,6 +323,265 @@ def build_char(cid, spec, outdir, target_head_px=48):
     return {'src': rel, 'parts': parts, 'heads': heads}, size
 
 
+# ── 可读性后处理：换色、重画、调色、外圈、包围盒、报告 ─────────────
+INK = np.array([43, 34, 51], dtype=np.float32)
+
+
+def hex_rgb(h):
+    h = h.lstrip('#')
+    return np.array([int(h[i:i + 2], 16) for i in (0, 2, 4)], dtype=np.float32) / 255
+
+
+def rgb_hsv(rgb):
+    mx, mn = rgb.max(-1), rgb.min(-1)
+    d = mx - mn
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    dd = np.where(d > 1e-6, d, 1)
+    h = np.where(mx == r, ((g - b) / dd) % 6, np.where(mx == g, (b - r) / dd + 2, (r - g) / dd + 4)) * 60
+    return np.where(d > 1e-6, h, 0), np.where(mx > 0, d / np.where(mx > 0, mx, 1), 0), mx
+
+
+def hsv_rgb(h, s, v):
+    h = (h % 360) / 60
+    i = np.floor(h).astype(int) % 6
+    f = h - np.floor(h)
+    p, q, t = v * (1 - s), v * (1 - s * f), v * (1 - s * (1 - f))
+    out = np.zeros(h.shape + (3,), np.float32)
+    for k, (R, G, B) in enumerate([(v, t, p), (q, v, p), (p, v, t), (p, q, v), (t, p, v), (v, p, q)]):
+        m = i == k
+        out[m, 0], out[m, 1], out[m, 2] = R[m], G[m], B[m]
+    return out
+
+
+def rect_mask(shape, rect):
+    H, W = shape
+    x0, y0, x1, y1 = rect
+    m = np.zeros(shape, bool)
+    m[int(y0 * H):int(y1 * H), int(x0 * W):int(x1 * W)] = True
+    return m
+
+
+# fix：在原图分辨率上做（原图大，换色边缘干净）
+def op_hue(im, f):
+    """色相落在 from=[lo,hi]（可跨 0°）的非墨线像素换成目标色，S/V 按选区中位数对齐到目标色等比缩放，保留明暗台阶。"""
+    a = np.asarray(im.convert('RGBA')).astype(np.float32)
+    rgb = a[..., :3] / 255
+    h, s, v = rgb_hsv(rgb)
+    lo, hi = f['from']
+    hue_in = (h >= lo) & (h <= hi) if lo <= hi else (h >= lo) | (h <= hi)
+    not_ink = np.abs(a[..., :3] - INK).sum(-1) >= 70
+    m = hue_in & (s >= f.get('sMin', 0.3)) & (s <= f.get('sMax', 1.0)) & (v >= f.get('vMin', 0.25)) & (a[..., 3] > 8) & not_ink
+    if f.get('rect'):
+        m &= rect_mask(m.shape, f['rect'])
+    if f.get('exclude'):
+        m &= ~rect_mask(m.shape, f['exclude'])
+    if not m.any():
+        print(f'  ! hue {f["from"]}->{f["to"]} 没选中任何像素')
+        return im
+    th, ts, tv = (x[0, 0] for x in rgb_hsv(hex_rgb(f['to'])[None, None]))
+    ns = np.clip(s * ts / max(float(np.median(s[m])), 1e-3), 0, 1)
+    nv = np.clip(v * tv / max(float(np.median(v[m])), 1e-3), 0, 1)
+    rgb = np.where(m[..., None], hsv_rgb(np.full_like(h, th), ns, nv), rgb)
+    return Image.fromarray(np.clip(np.concatenate([rgb * 255, a[..., 3:]], -1) + 0.5, 0, 255).astype(np.uint8), 'RGBA')
+
+
+def op_desat(im, f):
+    """框内非墨线像素向「目标色 × 自身明度」混合 k：背景里的同款物件变成低饱和剪影。"""
+    a = np.asarray(im.convert('RGBA')).astype(np.float32)
+    m = rect_mask(a.shape[:2], f['rect']) & (a[..., 3] > 8) & (np.abs(a[..., :3] - INK).sum(-1) >= 70)
+    w = np.array([0.299, 0.587, 0.114], np.float32)
+    t = hex_rgb(f['to']) * 255
+    lum = (a[..., :3] @ w)[..., None] / 255
+    tgt = np.clip(t * (lum / max(float(t @ w) / 255, 1e-3)) ** 0.6, 0, 255)
+    k = f.get('k', 0.85)
+    a[..., :3] = np.where(m[..., None], a[..., :3] * (1 - k) + tgt * k, a[..., :3])
+    return Image.fromarray(np.clip(a + 0.5, 0, 255).astype(np.uint8), 'RGBA')
+
+
+def op_erase(im, rect):
+    a = np.asarray(im.convert('RGBA')).copy()
+    a[rect_mask(a.shape[:2], rect), 3] = 0
+    return Image.fromarray(a, 'RGBA')
+
+
+def apply_fix(im, fixes):
+    for f in fixes or []:
+        im = op_erase(im, f['rect']) if f['op'] == 'erase' else {'hue': op_hue, 'desat': op_desat}[f['op']](im, f)
+    return im
+
+
+# post：在成品分辨率上做（粗细按逻辑 px 算才准）
+def op_rope(im, f, dpr):
+    """擦掉旧绳 → 4 倍超采样在底层画新绳（芯 w、墨线 ink，单位逻辑 px）→ 原图叠在上面。erase 可以是一个框或多个框。"""
+    src = im.convert('RGBA')
+    er = f.get('erase') or []
+    for r in (er if er and isinstance(er[0], list) else [er] if er else []):
+        src = op_erase(src, r)
+    S = 4
+    W, H = src.size
+    big = Image.new('RGBA', (W * S, H * S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(big)
+    p0 = (f['from'][0] * W * S, f['from'][1] * H * S)
+    p1 = (f['to'][0] * W * S, f['to'][1] * H * S)
+    core, ink = f['w'] * dpr * S, f.get('ink', 1) * dpr * S
+    c = tuple(int(x * 255) for x in hex_rgb(f['color']))
+    hl = tuple(min(255, int(x * 127.5 + 127.5)) for x in hex_rgb(f['color']))
+    d.line([p0, p1], fill=(43, 34, 51, 255), width=round(core + 2 * ink))
+    for p in (p0, p1):
+        r = core / 2 + ink
+        d.ellipse([p[0] - r, p[1] - r, p[0] + r, p[1] + r], fill=(43, 34, 51, 255))
+    d.line([p0, p1], fill=c + (255,), width=round(core))
+    d.line([(p0[0], p0[1] - core * 0.22), (p1[0], p1[1] - core * 0.22)], fill=hl + (255,), width=max(1, round(core * 0.25)))
+    under = big.resize((W, H), Image.LANCZOS)
+    under.alpha_composite(src)
+    return under
+
+
+def op_tread(im, f, dpr):
+    """台阶踏步边：每列从顶部墨线下面开始涂 h 逻辑 px 目标色，再补 ink 逻辑 px 墨线。只处理图的上半部分。"""
+    a = np.asarray(im.convert('RGBA')).copy()
+    H, W = a.shape[:2]
+    px, ink = round(f['h'] * dpr), round(f.get('ink', 1) * dpr)
+    c = (hex_rgb(f['color']) * 255).astype(np.uint8)
+    for x in range(W):
+        col = a[:H // 2, x]
+        op = np.nonzero(col[:, 3] > 128)[0]
+        if not len(op):
+            continue
+        y = op[0]
+        while y < len(col) and np.abs(col[y, :3].astype(int) - INK).sum() < 90:
+            y += 1
+        if y < len(col) - px - ink:
+            a[y:y + px, x, :3] = c
+            a[y + px:y + px + ink, x, :3] = INK.astype(np.uint8)
+    return Image.fromarray(a, 'RGBA')
+
+
+def apply_post(im, posts, dpr):
+    for f in posts or []:
+        im = {'rope': op_rope, 'tread': op_tread}[f['op']](im, f, dpr)
+    return im
+
+
+def box_mean(x, r=4):
+    p = np.pad(x.astype(np.float64), r, mode='edge')
+    c = np.pad(np.cumsum(np.cumsum(p, 0), 1), ((1, 0), (1, 0)))
+    k = 2 * r + 1
+    return ((c[k:, k:] - c[:-k, k:] - c[k:, :-k] + c[:-k, :-k]) / (k * k)).astype(np.float32)
+
+
+def grade(im, G):
+    """背景调色：饱和度 × sat；明度线性压到 v=[v0,v1]；描边像素 = ink × 墨色 + (1-ink) × 邻域均色 × inkDark。
+    粗墨线只留给前景（会撞的东西），背景描边变成同色系深色。"""
+    if not G:
+        return im
+    a = np.asarray(im.convert('RGBA')).astype(np.float32)
+    h, s, v = rgb_hsv(a[..., :3] / 255)
+    v0, v1 = G.get('v', [0.0, 1.0])
+    new = hsv_rgb(h, s * G.get('sat', 1.0), v0 + (v1 - v0) * v)
+    ink_px = (np.sqrt(((a[..., :3] - INK) ** 2).sum(-1)) < 60) & (a[..., 3] > 8)
+    w = (~ink_px & (a[..., 3] > 8)).astype(np.float32)
+    ws = box_mean(w)
+    loc = np.stack([box_mean(new[..., i] * w) for i in range(3)], -1) / np.maximum(ws, 1e-3)[..., None]
+    loc = np.where((ws > 1e-3)[..., None], loc, new)
+    k = G.get('ink', 1.0)
+    mixed = (INK / 255) * k + loc * G.get('inkDark', 0.7) * (1 - k)
+    out = np.where(ink_px[..., None], mixed, new)
+    return Image.fromarray(np.clip(np.concatenate([out * 255, a[..., 3:]], -1) + 0.5, 0, 255).astype(np.uint8), 'RGBA')
+
+
+def add_rim(im, px, color, bottom):
+    """贴纸外圈：圆角外扩 px 像素，米白垫底。bottom=False 去掉底边那圈（落地的障碍不往地面下长）。
+    返回 (图, 左/右/上外扩 px, 底边外扩 px)。"""
+    im = im.convert('RGBA')
+    W, H = im.size
+    pad = px + 2
+    big = Image.new('RGBA', (W + 2 * pad, H + 2 * pad), (0, 0, 0, 0))
+    big.alpha_composite(im, (pad, pad))
+    a = big.getchannel('A').point(lambda v: 255 if v > 60 else 0)
+    dil = a.filter(ImageFilter.GaussianBlur(px * 0.75)).point(lambda v: 255 if v > 18 else 0).filter(ImageFilter.GaussianBlur(0.4))
+    layer = Image.new('RGBA', big.size, tuple(int(x * 255) for x in hex_rgb(color)) + (0,))
+    layer.putalpha(dil)
+    layer.alpha_composite(big)
+    out = layer.crop((pad - px, pad - px, pad + W + px, pad + H + (px if bottom else 0)))
+    return out, px, (px if bottom else 0)
+
+
+def content_bbox(im, dpr, ox, oy, h):
+    """不透明内容包围盒（逻辑 px，相对绘制原点；y 向上为负）。"""
+    b = im.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox()
+    if not b:
+        return None
+    x0, y0, x1, y1 = b
+    top = oy - h                              # 图顶边的 y
+    return [round(ox + x0 / dpr, 1), round(top + y0 / dpr, 1), round(ox + x1 / dpr, 1), round(top + y1 / dpr, 1)]
+
+
+def find_hole(im, dpr, ox, oy, h, min_frac=0.02):
+    """最大的「门洞」透明区域 → [x, y, w, h]，逻辑 px，相对绘制原点。
+    碰到左、上、右边的透明区域是图外空白，不算；碰到底边的算（门洞从地面开始）。"""
+    a = np.asarray(im.getchannel('A')) <= 8
+    comps, _, _ = components(a)
+    H, W = a.shape
+    best = None
+    for area, (x0, y0, x1, y1), _ in comps:
+        if x0 <= 0 or y0 <= 0 or x1 >= W:
+            continue
+        if area >= W * H * min_frac and (best is None or area > best[0]):
+            best = (area, (x0, y0, x1, y1))
+    if not best:
+        return None
+    x0, y0, x1, y1 = best[1]
+    top = oy - h
+    return [round(ox + x0 / dpr, 1), round(top + y0 / dpr, 1), round((x1 - x0) / dpr, 1), round((y1 - y0) / dpr, 1)]
+
+
+def hue_sector(im):
+    """饱和度加权的主色扇区（0–11，30° 一格）；中性色（饱和像素 <15%）返回 None。"""
+    a = np.asarray(im.convert('RGBA')).astype(np.float32)
+    h, s, v = rgb_hsv(a[..., :3] / 255)
+    m = (a[..., 3] > 200) & (np.abs(a[..., :3] - INK).sum(-1) >= 70)
+    sel = m & (s > 0.35) & (v > 0.35)
+    if sel.sum() < m.sum() * 0.15:
+        return None
+    hist = np.bincount((h[sel] // 30).astype(int) % 12, weights=s[sel], minlength=12)
+    return int(np.argmax(hist))
+
+
+def band_stats(mods, veil, dpr):
+    """中景模块底部 60 逻辑 px（跳跃带）的统计，模拟运行时的保底暮色罩。veil = {"color": "#341E60", "alpha": 0.2}。"""
+    veil = veil or {'color': '#341E60', 'alpha': 0}
+    vc, va = hex_rgb(veil['color']) * 255, veil['alpha']
+    S, HB, INKF, band = [], [], [], np.zeros(12)
+    tot = 0
+    for im in mods:
+        a = np.asarray(im.convert('RGBA')).astype(np.float32)[-60 * dpr:]
+        m = a[..., 3] > 200
+        rgb = a[..., :3] * (1 - va) + vc * va
+        h, s, v = rgb_hsv(rgb / 255)
+        S.append(s[m]); HB.append(((s > .45) & (v > .55))[m]); INKF.append((np.abs(a[..., :3] - INK).sum(-1) < 70)[m])
+        sel = m & (s > .35) & (v > .35)
+        band += np.bincount((h[sel] // 30).astype(int) % 12, minlength=12)
+        tot += m.sum()
+    cat = lambda xs: np.concatenate(xs) if xs else np.zeros(1)
+    return {'sMean': round(float(cat(S).mean()), 3), 'hiSatBright': round(float(cat(HB).mean()), 3),
+            'ink': round(float(cat(INKF).mean()), 3), 'hueBand': [round(float(x / max(tot, 1)), 3) for x in band], 'veil': veil}
+
+
+def all_srcs(manifest):
+    """清单里引用到的所有图片（bg 的模块、变体，props，chars）。"""
+    out = set()
+    for layers in manifest['bg'].values():
+        for d in layers.values():
+            for m in d.get('modules') or d.get('variants') or [d]:
+                out.add(m['src'])
+            if d.get('src'):
+                out.add(d['src'])
+    for d in list(manifest['props'].values()) + list(manifest['chars'].values()):
+        out.add(d['src'])
+    return out
+
+
 # ── 清单 ─────────────────────────────────────────────────
 def build(spec_path):
     spec = json.load(open(spec_path, encoding='utf-8'))
@@ -314,18 +589,42 @@ def build(spec_path):
     outdir = os.path.join(ROOT, spec.get('out', 'art'))
     manifest = {'base': spec.get('base', 'art/'), 'bg': {}, 'props': {}, 'chars': {}}
     total = 0
+    rim_px, rim_color = spec.get('rimPx', 3), spec.get('rimColor', '#FFF8EC')
+    report = {'props': {}, 'bg': {}}
+    layer_cache = {}                 # 远景去重：同一张源图、同样参数只处理一次，后面的路段引用同一个文件
+    skipped = []                     # 源图还没有的条目：清单里不写，运行时走代码兜底
+    exists = lambda p: os.path.exists(os.path.join(ROOT, p))
     for stage, layers in (spec.get('bg') or {}).items():
         for name, L in layers.items():
             if 'modules' in L:          # 模块式：引擎随机拼接
-                mods, size = build_modules(L['modules'], outdir, stage, name, L['h'], dpr)
+                mods, size, ims = build_modules(L['modules'], outdir, stage, name, L['h'], dpr, L.get('grade'))
+                if not mods:
+                    skipped.append(f'bg {stage}/{name}')
+                    continue
                 total += size
                 entry = {'modules': mods, 'par': L.get('par', 0.5), 'dy': L.get('dy', 0), 'gap': L.get('gap', [6, 40]), 'w': 300, 'h': L['h']}
-                if L.get('backdrop'):
-                    entry['backdrop'] = L['backdrop']
+                for k in ('backdrop', 'backdropFull'):          # 透传给运行时
+                    if L.get(k) is not None:
+                        entry[k] = L[k]
                 manifest['bg'].setdefault(stage, {})[name] = entry
                 print(f'bg {stage}/{name}: {len(mods)} modules, {size // 1024}KB')
+                if name == 'mid':
+                    st = band_stats(ims, L.get('veil'), dpr)
+                    report['bg'][stage] = st
+                    print(f'  jump band S {st["sMean"]}  hiSB(+veil) {st["hiSatBright"]}  ink {st["ink"]}')
+                    if L.get('grade') and (st['sMean'] > 0.36 or st['hiSatBright'] > 0.15 or st['ink'] > 0.12):
+                        raise SystemExit(f'{stage} 跳跃带超标：{st}')
                 continue
             srcs = L['src'] if isinstance(L['src'], list) else [L['src']]
+            srcs = [s for s in srcs if exists(s)]
+            if not srcs:
+                skipped.append(f'bg {stage}/{name}')
+                continue
+            key = (tuple(srcs), L['h'], L.get('blend', 140), L.get('opaque', False))
+            if key in layer_cache:
+                manifest['bg'].setdefault(stage, {})[name] = {**layer_cache[key], 'par': L.get('par', 0.5), 'dy': L.get('dy', 0)}
+                print(f'bg {stage}/{name}: 复用 {layer_cache[key]["src"]}')
+                continue
             variants = []
             for vi, src in enumerate(srcs):
                 rel = f'bg/{stage}_{name}{"" if vi == 0 else "_" + str(vi)}.png'
@@ -336,24 +635,55 @@ def build(spec_path):
             entry = {**variants[0], 'par': L.get('par', 0.5), 'dy': L.get('dy', 0)}
             if len(variants) > 1:
                 entry['variants'] = variants
+            layer_cache[key] = {k: entry[k] for k in ('src', 'w', 'h', 'variants') if k in entry}
             manifest['bg'].setdefault(stage, {})[name] = entry
     # 道具 / 障碍 / 地标：{ "src", "w"(逻辑宽), "h"(可省，按比例), "ox", "oy" }，宽度按判定框 + 画面需要自己定
+    # 处理顺序：清理 → 裁剪 → fix 换色（原图分辨率）→ 翻转 → 缩放 → post 重画（成品分辨率）→ grade → bbox → rim 外圈
     for pid, P in (spec.get('props') or {}).items():
+        if not exists(P['src']):
+            print(f'  ! prop {pid}: 源图还没有，跳过（清单里不写，运行时走代码兜底）')
+            skipped.append(f'prop {pid}')
+            continue
         im = crop_content(clean_alpha(Image.open(os.path.join(ROOT, P['src']))))
         if P.get('crop'):            # 按比例裁一块（例如脚手架去掉警示条下面的腿）：[x0, y0, x1, y1]
             x0, y0, x1, y1 = P['crop']
             im = crop_content(im.crop((round(x0 * im.width), round(y0 * im.height), round(x1 * im.width), round(y1 * im.height))), pad=0)
+        im = apply_fix(im, P.get('fix'))
         if P.get('flip'):
             im = im.transpose(Image.FLIP_LEFT_RIGHT)
         w = P.get('w') or round(P['h'] * im.width / im.height, 1)     # 宽高只给一个就按原图比例算另一个
         h = P.get('h') or round(w * im.height / im.width, 1)
         im = im.resize((max(1, round(w * dpr)), max(1, round(h * dpr))), Image.LANCZOS)
-        rel = f'props/{pid}.png'
-        size = save_png(im, os.path.join(outdir, rel))
-        manifest['props'][pid] = {'src': rel, 'w': w, 'h': h, 'ox': P.get('ox', 0), 'oy': P.get('oy', 0)}
+        im = apply_post(im, P.get('post'), dpr)
+        im = grade(im, P.get('grade'))                                 # 背景类道具（不会撞的）调色
+        ox, oy = P.get('ox', 0), P.get('oy', 0)
+        entry = {'src': f'props/{pid}.png', 'w': w, 'h': h, 'ox': ox, 'oy': oy}
+        entry['bbox'] = content_bbox(im, dpr, ox, oy, h)               # 外圈之前记录：测试拿它对判定框
+        if P.get('hole'):
+            entry['hole'] = find_hole(im, dpr, ox, oy, h)
+        if P.get('anchors'):                                           # 比例坐标 → 相对绘制原点的逻辑 px
+            entry['anchors'] = {k: [round(ox + fx * w, 1), round(oy - h + fy * h, 1)] for k, (fx, fy) in P['anchors'].items()}
+        if P.get('centerOn') == 'hole' and entry.get('hole'):          # 把原点挪到门洞水平中心
+            dx = entry['hole'][0] + entry['hole'][2] / 2
+            ox = entry['ox'] = round(ox - dx, 2)
+            entry['hole'][0] = round(entry['hole'][0] - dx, 1)
+            entry['bbox'][0], entry['bbox'][2] = round(entry['bbox'][0] - dx, 1), round(entry['bbox'][2] - dx, 1)
+            for v in (entry.get('anchors') or {}).values():
+                v[0] = round(v[0] - dx, 1)
+        if P.get('rim'):             # 米白外圈：会撞的和能捡的才有。"ground" 底边不加，"float" 四边都加；内容在屏幕上的位置不变
+            im, side, bot = add_rim(im, rim_px, rim_color, P['rim'] == 'float')
+            entry.update(w=round(w + 2 * side / dpr, 1), h=round(h + (side + bot) / dpr, 1), ox=round(ox - side / dpr, 2), oy=round(oy + bot / dpr, 2), rim=round(rim_px / dpr, 2))
+        size = save_png(im, os.path.join(outdir, entry['src']))
+        manifest['props'][pid] = entry
+        report['props'][pid] = {'bytes': size, 'hueSector': hue_sector(im)}
         total += size
-        print(f'prop {pid}: {w}x{h} logical, {size // 1024}KB')
+        print(f'prop {pid}: {entry["w"]}x{entry["h"]} logical, {size // 1024}KB' + (' rim' if P.get('rim') else ''))
     for cid, c in (spec.get('chars') or {}).items():
+        need = list((c.get('parts') or {}).values()) + list((c.get('heads') or {}).values())
+        if not need or not all(exists(p) for p in need):
+            print(f'  ! char {cid}: 源图不全，跳过（运行时走代码兜底）')
+            skipped.append(f'char {cid}')
+            continue
         entry, size = build_char(cid, c, outdir, c.get('headPx', 96))   # 头直径 96px：结算页 / 饭桌放大到 2 倍也清楚
         manifest['chars'][cid] = entry
         total += size
@@ -366,6 +696,21 @@ def build(spec_path):
             f.write('// 美术清单：由 tools/art/build.py 生成，别手改。\n')
             f.write('// 空的时候所有东西回退到代码绘制，游戏照样能玩。\n')
             f.write('export const ART_MANIFEST = ' + json.dumps(manifest, ensure_ascii=False, indent=1) + ';\n')
+    # 清理：清单没引用的旧图（剔除的模块、去重掉的远景、改名前的文件）不删的话还会被打进包里
+    used = all_srcs(manifest)
+    for dirpath, _, files in os.walk(outdir):
+        for fn in files:
+            rel = os.path.relpath(os.path.join(dirpath, fn), outdir).replace('\\', '/')
+            if fn.endswith('.png') and rel not in used:
+                os.remove(os.path.join(dirpath, fn))
+                print('removed stale', rel)
+    # 报告：tools/ 不进包，测试读它检查撞色扇区、跳跃带指标
+    rp = os.path.join(ROOT, spec.get('report', 'tools/art/report.json'))
+    with open(rp, 'w', encoding='utf-8', newline='\n') as f:   # 新文件用 LF
+        json.dump(report, f, ensure_ascii=False, indent=1)
+        f.write('\n')
+    if skipped:
+        print('还在用代码兜底：' + '、'.join(skipped))
     print(f'total {total // 1024}KB → {target}')
     return manifest
 

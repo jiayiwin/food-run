@@ -55,3 +55,20 @@ test('触摸被系统取消后不再发事件', () => {
   g.tick(200);
   assert.deepEqual(types(), ['down']);
 });
+
+test('swipe 事件带 dx、dy：数值等于触发时 / 抬手时的位移（场景按模式重新判方向）', () => {
+  const { g, log } = rig();
+  g.start(pt(100, 100, 0));
+  g.move(pt(114, 88, 30));                       // 位移 (14, -12)：约 18.4px，过阈值，滑动时就触发
+  const s = log.find(e => e.type === 'swipe');
+  assert.ok(s);
+  assert.equal(s.dx, 14); assert.equal(s.dy, -12);
+  assert.equal(s.dir, 'right');                  // 手势层的方向照旧（|dx| > |dy|），跑酷里由 swipe.js 改判成上划
+
+  const b = rig();
+  b.g.start(pt(100, 100, 0, 1));
+  b.g.end(pt(90, 89, 40, 1));                    // 没滑够 18px 的小幅快划：抬手时按方向算滑动
+  const s2 = b.log.find(e => e.type === 'swipe');
+  assert.ok(s2);
+  assert.equal(s2.dx, -10); assert.equal(s2.dy, -11);
+});

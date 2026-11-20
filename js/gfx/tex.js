@@ -9,7 +9,6 @@ import { rawCanvas, screen } from '../platform/index.js';
 export const BAKE_RES = Math.min(3, Math.max(1, screen.scale * screen.dpr));
 
 const cache = new Map();
-export const texCount = () => cache.size;
 
 // 把一段矢量画画成贴图。box = [left, top, width, height]（逻辑单位，相对绘制原点），draw(ctx) 在原点坐标系里画
 export function bake(key, box, draw, { res = BAKE_RES } = {}) {
@@ -25,6 +24,32 @@ export function bake(key, box, draw, { res = BAKE_RES } = {}) {
   return t;
 }
 
+// 带米白外圈的烘焙（「会撞的、能捡的」才有外圈，和美术图打包时加的外圈同一个语义）：
+// 先把矢量画进临时画布，向 8 个方向各偏 rim 叠出剪影、染成米白垫在下面，再把原画叠上去
+let scratchA = null, scratchB = null;
+export function bakeSticker(key, box, draw, { rim = 1.5, color = '#FFF8EC', res = BAKE_RES } = {}) {
+  let t = cache.get(key);
+  if (t) return t;
+  const left = box[0] - rim, top = box[1] - rim, w = box[2] + 2 * rim, h = box[3] + 2 * rim;
+  const pw = Math.max(1, Math.ceil(w * res)), ph = Math.max(1, Math.ceil(h * res));
+  if (!scratchA) { scratchA = rawCanvas(pw, ph); scratchB = rawCanvas(pw, ph); }
+  for (const s of [scratchA, scratchB]) { s.canvas.width = pw; s.canvas.height = ph; s.ctx.setTransform(1, 0, 0, 1, 0, 0); s.ctx.globalCompositeOperation = 'source-over'; s.ctx.clearRect(0, 0, pw, ph); }
+  const A = scratchA.ctx, B = scratchB.ctx;
+  A.setTransform(res, 0, 0, res, -left * res, -top * res);
+  draw(A);
+  A.setTransform(1, 0, 0, 1, 0, 0);
+  const d = rim * res, k = Math.SQRT1_2;
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [k, k], [k, -k], [-k, k], [-k, -k]]) B.drawImage(scratchA.canvas, dx * d, dy * d);
+  B.globalCompositeOperation = 'source-in';
+  B.fillStyle = color; B.fillRect(0, 0, pw, ph);
+  const { canvas, ctx } = rawCanvas(pw, ph);
+  ctx.drawImage(scratchB.canvas, 0, 0);
+  ctx.drawImage(scratchA.canvas, 0, 0);
+  t = { key, w: pw / res, h: ph / res, src: canvas, sx: 0, sy: 0, sw: pw, sh: ph, ox: -left, oy: -top };
+  cache.set(key, t);
+  return t;
+}
+
 // 已加载的图片 → 贴图（w/h 逻辑尺寸，默认按 dpr 2 的图算）
 export function fromImage(key, img, w, h, { ox = 0, oy = 0, sx = 0, sy = 0, sw, sh } = {}) {
   let t = cache.get(key);
@@ -34,8 +59,6 @@ export function fromImage(key, img, w, h, { ox = 0, oy = 0, sx = 0, sy = 0, sw, 
   cache.set(key, t);
   return t;
 }
-
-export const getTex = key => cache.get(key) || null;
 
 // 临时烘焙（不进全局缓存，由调用方自己做 LRU 回收，回收时调 gfx.release）
 export function bakeTemp(key, box, draw, { res = BAKE_RES } = {}) {

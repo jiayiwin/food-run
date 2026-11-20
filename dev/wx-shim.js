@@ -1,10 +1,13 @@
 // 浏览器里调试用的 wx 适配层：只实现游戏用到的那几个接口，行为尽量贴近微信小游戏。
 // 参数：?w=390&h=844 固定画面尺寸（默认铺满窗口）；?notch=1 模拟刘海屏安全区；?dpr=2 指定像素比。
+// 好友卡的 h 是家庭剧本的故事（h=share.tissue），和屏幕高度同名：只有纯数字的 w / h 当屏幕尺寸，也不进启动参数
 (function () {
   const q = new URLSearchParams(location.search);
   const nav = navigator, imgSrc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');   // 严格模式会藏掉这些全局，先存下来
-  const W = +q.get('w') || window.innerWidth;
-  const H = +q.get('h') || window.innerHeight;
+  const isSize = (k, v) => (k === 'w' || k === 'h') && /^\d+$/.test(v);
+  const size = k => +(q.getAll(k).find(v => isSize(k, v)) || 0);
+  const W = size('w') || window.innerWidth;
+  const H = size('h') || window.innerHeight;
   const DPR = +q.get('dpr') || window.devicePixelRatio || 2;
   const notch = q.get('notch') === '1';
   let screenCanvas = null;
@@ -49,7 +52,7 @@
     onTouchEnd: f => handlers.end.push(f),
     onTouchCancel: f => handlers.cancel.push(f),
     offTouchStart() { handlers.start.length = 0; },
-    getLaunchOptionsSync() { return { query: Object.fromEntries(q.entries()), scene: 1001 }; },
+    getLaunchOptionsSync() { return { query: Object.fromEntries([...q.entries()].filter(([k, v]) => !isSize(k, v))), scene: 1001 }; },
     onKeyDown: f => handlers.keydown.push(f),
     onKeyUp: f => handlers.keyup.push(f),
     onShow: f => handlers.show.push(f),
@@ -75,6 +78,7 @@
     loadFont() { return null; },
     showShareMenu() {}, onShareAppMessage() {}, shareAppMessage(o) { console.log('[wx.shareAppMessage]', o); },
     showToast(o) { console.log('[wx.showToast]', o && o.title); },
+    setClipboardData(o) { console.log('[wx.setClipboardData]', o && o.data); if (nav.clipboard) nav.clipboard.writeText(String(o && o.data)).catch(() => {}); },
   };
   document.addEventListener('visibilitychange', () => (document.hidden ? handlers.hide : handlers.show).forEach(f => f({})));
   window.addEventListener('keydown', e => { if (!e.repeat) handlers.keydown.forEach(f => f({ key: e.key, code: e.code, timeStamp: performance.now() })); if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault(); });

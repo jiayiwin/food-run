@@ -3,6 +3,8 @@
  "out": "art",
  "base": "art/",
  "manifest": "js/data/art.js",
+ "rimPx": 3,
+ "rimColor": "#FFF8EC",
  "bg": {
   "office": {
    "far": {
@@ -15,7 +17,10 @@
     "modules": [
      {
       "src": "art-src/bg/office_mid_1/part_*.png",
-      "h": 150
+      "h": 150,
+      "skip": [
+       "part_03.png"
+      ]
      },
      {
       "src": "art-src/bg/office_mid_2/part_*.png",
@@ -28,7 +33,26 @@
      0,
      0
     ],
-    "backdrop": "#efe3f5"
+    "backdrop": "#efe3f5",
+    "dy": -10,
+    "veil": {
+     "color": "#341E60",
+     "alpha": 0,
+     "fog": {
+      "color": "#EFE3F5",
+      "alpha": 0.12,
+      "h": 70
+     }
+    },
+    "grade": {
+     "sat": 0.8,
+     "ink": 0.3,
+     "inkDark": 0.7,
+     "v": [
+      0.4,
+      0.95
+     ]
+    }
    }
   },
   "street": {
@@ -58,7 +82,21 @@
     "gap": [
      2,
      26
-    ]
+    ],
+    "dy": -14,
+    "veil": {
+     "color": "#341E60",
+     "alpha": 0.2
+    },
+    "grade": {
+     "sat": 0.6,
+     "ink": 0.3,
+     "inkDark": 0.7,
+     "v": [
+      0.28,
+      0.88
+     ]
+    }
    }
   },
   "park": {
@@ -72,7 +110,22 @@
     "modules": [
      {
       "src": "art-src/bg/park_mid_1_modules/part_*.png",
-      "h": 260
+      "h": 260,
+      "fix": {
+       "part_02.png": [
+        {
+         "op": "desat",
+         "rect": [
+          0.085,
+          0.4,
+          0.905,
+          0.905
+         ],
+         "to": "#8E7FA0",
+         "k": 0.85
+        }
+       ]
+      }
      },
      {
       "src": "art-src/bg/park_mid_2_modules/part_*.png",
@@ -84,7 +137,21 @@
     "gap": [
      8,
      40
-    ]
+    ],
+    "dy": -14,
+    "veil": {
+     "color": "#341E60",
+     "alpha": 0.22
+    },
+    "grade": {
+     "sat": 0.7,
+     "ink": 0.3,
+     "inkDark": 0.7,
+     "v": [
+      0.28,
+      0.85
+     ]
+    }
    }
   },
   "home": {
@@ -102,7 +169,10 @@
      },
      {
       "src": "art-src/bg/home_mid_2_modules/part_*.png",
-      "h": 140
+      "h": 140,
+      "skip": [
+       "part_02.png"
+      ]
      }
     ],
     "h": 140,
@@ -111,7 +181,22 @@
      10,
      36
     ],
-    "backdrop": "#f1e2c6"
+    "backdrop": "#f1e2c6",
+    "dy": -14,
+    "veil": {
+     "color": "#3A2A40",
+     "alpha": 0.22
+    },
+    "grade": {
+     "sat": 0.7,
+     "ink": 0.3,
+     "inkDark": 0.7,
+     "v": [
+      0.25,
+      0.82
+     ]
+    },
+    "backdropFull": true
    }
   }
  },
@@ -120,49 +205,117 @@
    "src": "art-src/props/filebox.png",
    "w": 34,
    "h": 36,
-   "ox": -1
+   "ox": -1,
+   "rim": "ground",
+   "fix": [
+    {
+     "op": "hue",
+     "from": [
+      10,
+      50
+     ],
+     "to": "#2E6BFF",
+     "sMin": 0.25,
+     "vMin": 0.3
+    }
+   ]
   },
   "chair": {
    "src": "art-src/props/chair.png",
    "w": 32,
    "h": 40,
-   "ox": 2
+   "ox": 2,
+   "rim": "ground",
+   "fix": [
+    {
+     "op": "hue",
+     "from": [
+      150,
+      215
+     ],
+     "to": "#E0409A",
+     "sMin": 0.3,
+     "vMin": 0.2
+    },
+    {
+     "op": "hue",
+     "from": [
+      345,
+      30
+     ],
+     "to": "#6B6478",
+     "sMin": 0.35,
+     "vMin": 0.25
+    }
+   ]
   },
   "banner": {
    "src": "art-src/props/banner.png",
    "w": 90,
    "h": 107,
-   "oy": -48
+   "oy": -48,
+   "rim": "float"
   },
   "wetsign": {
    "src": "art-src/props/wetsign.png",
    "w": 25,
    "h": 40,
-   "ox": -0.5
+   "ox": -0.5,
+   "rim": "ground"
   },
   "puddle": {
    "src": "art-src/props/puddle.png",
    "w": 56,
    "h": 8,
-   "oy": 2
+   "oy": 2,
+   "rim": "ground"
   },
   "cone": {
    "src": "art-src/props/cone.png",
    "w": 25,
    "h": 36,
-   "ox": -0.5
+   "ox": -0.5,
+   "rim": "ground"
   },
   "shopbar": {
    "src": "art-src/props/shopbar.png",
    "w": 72,
    "h": 86,
    "ox": -1,
-   "oy": -48
+   "oy": -48,
+   "rim": "float",
+   "fix": [
+    {
+     "op": "hue",
+     "from": [
+      345,
+      14
+     ],
+     "to": "#2E6BFF",
+     "sMin": 0.45,
+     "vMin": 0.3,
+     "rect": [
+      0,
+      0,
+      1,
+      0.3
+     ]
+    }
+   ]
   },
   "step": {
    "src": "art-src/props/step_fit.png",
    "w": 160,
-   "h": 40
+   "h": 40,
+   "rim": "ground",
+   "post": [
+    {
+     "op": "tread",
+     "h": 4,
+     "ink": 1,
+     "color": "#FFD60A"
+    }
+   ]
   },
   "scaffold": {
    "src": "art-src/props/scaffold.png",
@@ -174,12 +327,32 @@
    ],
    "w": 99.5,
    "ox": -9.75,
-   "oy": -48
+   "oy": -48,
+   "rim": "float",
+   "fix": [
+    {
+     "op": "hue",
+     "from": [
+      25,
+      70
+     ],
+     "to": "#6B6478",
+     "sMin": 0.35,
+     "vMin": 0.35,
+     "rect": [
+      0,
+      0.82,
+      1,
+      1
+     ]
+    }
+   ]
   },
   "manhole": {
    "src": "art-src/props/manhole.png",
    "w": 108,
-   "oy": 5
+   "oy": 5,
+   "rim": "ground"
   },
   "warnSign": {
    "src": "art-src/props/warnSign.png",
@@ -191,44 +364,82 @@
    "w": 14,
    "h": 14,
    "ox": -7,
-   "oy": 7
+   "oy": 7,
+   "rim": "float"
   },
   "bun": {
    "src": "art-src/props/bun.png",
    "w": 24,
    "h": 19,
    "ox": -12,
-   "oy": 9.5
+   "oy": 9.5,
+   "rim": "float"
   },
   "trike": {
    "src": "art-src/props/trike.png",
    "w": 86,
    "h": 50,
-   "ox": -7
+   "ox": -7,
+   "rim": "ground"
   },
   "sheet": {
    "src": "art-src/props/sheet_fit.png",
    "w": 159,
    "h": 124,
-   "ox": -29.5
+   "ox": -29.5,
+   "rim": "float"
   },
   "bin": {
    "src": "art-src/props/bin.png",
    "w": 26,
    "h": 46,
-   "ox": 2
+   "ox": 2,
+   "rim": "ground"
   },
   "parcel": {
    "src": "art-src/props/parcel.png",
    "w": 53,
    "h": 34,
-   "ox": -6.5
+   "ox": -6.5,
+   "rim": "ground",
+   "fix": [
+    {
+     "op": "hue",
+     "from": [
+      20,
+      70
+     ],
+     "to": "#2E6BFF",
+     "sMin": 0.08,
+     "sMax": 0.34,
+     "vMin": 0.8,
+     "exclude": [
+      0.74,
+      0.62,
+      0.95,
+      0.9
+     ]
+    }
+   ]
   },
   "ebikeHall": {
    "src": "art-src/props/ebikeHall.png",
    "w": 72,
    "h": 46,
-   "ox": -4
+   "ox": -4,
+   "rim": "ground",
+   "fix": [
+    {
+     "op": "hue",
+     "from": [
+      150,
+      215
+     ],
+     "to": "#FFD60A",
+     "sMin": 0.3,
+     "vMin": 0.2
+    }
+   ]
   },
   "store": {
    "src": "art-src/props/store.png",
@@ -281,24 +492,371 @@
   },
   "leash": {
    "src": "art-src/hero-extras/leash_short.png",
+   "crop": [
+    0.22,
+    0,
+    1,
+    1
+   ],
+   "w": 90.5,
+   "ox": -0.5,
+   "rim": "ground",
+   "fix": [
+    {
+     "op": "hue",
+     "from": [
+      330,
+      15
+     ],
+     "to": "#B6F23A",
+     "sMin": 0.55,
+     "vMin": 0.3
+    },
+    {
+     "op": "hue",
+     "from": [
+      150,
+      215
+     ],
+     "to": "#2E6BFF",
+     "sMin": 0.3,
+     "vMin": 0.2,
+     "rect": [
+      0.7,
+      0,
+      1,
+      1
+     ]
+    }
+   ],
+   "post": [
+    {
+     "op": "rope",
+     "from": [
+      0.0,
+      0.33
+     ],
+     "to": [
+      0.87,
+      0.33
+     ],
+     "w": 4,
+     "ink": 1,
+     "color": "#B6F23A",
+     "erase": [
+      [
+       0.0,
+       0.0,
+       0.66,
+       1.0
+      ],
+      [
+       0.66,
+       0.22,
+       0.725,
+       0.46
+      ]
+     ]
+    }
+   ]
+  },
+  "leashLady": {
+   "src": "art-src/hero-extras/leash_short.png",
+   "crop": [
+    0,
+    0,
+    0.27,
+    1
+   ],
    "h": 52,
-   "ox": -26
+   "ox": -26,
+   "fix": [
+    {
+     "op": "hue",
+     "from": [
+      330,
+      15
+     ],
+     "to": "#B6F23A",
+     "sMin": 0.55,
+     "vMin": 0.3,
+     "rect": [
+      0.55,
+      0.6,
+      1,
+      0.85
+     ]
+    }
+   ],
+   "grade": {
+    "sat": 0.75,
+    "ink": 1.0,
+    "v": [
+     0.0,
+     1.0
+    ]
+   }
   },
   "scooter": {
    "src": "art-src/hero-extras/scooter.png",
    "w": 33.3,
    "h": 52,
-   "ox": -1.65
+   "ox": -1.65,
+   "rim": "ground"
   },
   "bike": {
    "src": "art-src/hero-extras/bike.png",
    "w": 66,
-   "ox": -3
+   "ox": -3,
+   "rim": "ground",
+   "fix": [
+    {
+     "op": "hue",
+     "from": [
+      330,
+      30
+     ],
+     "to": "#1FA2FF",
+     "sMin": 0.35,
+     "vMin": 0.25
+    }
+   ]
   },
   "rider": {
    "src": "art-src/hero-extras/rider.png",
    "w": 82.5,
-   "h": 90
+   "h": 90,
+   "rim": "ground"
+  },
+  "car_sedan": {
+   "src": "art-src/props/traffic/part_00.png",
+   "w": 106,
+   "grade": {
+    "sat": 0.85,
+    "ink": 0.6,
+    "inkDark": 0.7,
+    "v": [
+     0.08,
+     0.85
+    ]
+   },
+   "anchors": {
+    "head": [
+     0.96,
+     0.53
+    ],
+    "tail": [
+     0.04,
+     0.46
+    ]
+   }
+  },
+  "car_taxi": {
+   "src": "art-src/props/traffic/part_01.png",
+   "w": 115,
+   "grade": {
+    "sat": 0.85,
+    "ink": 0.6,
+    "inkDark": 0.7,
+    "v": [
+     0.08,
+     0.85
+    ]
+   },
+   "anchors": {
+    "head": [
+     0.96,
+     0.58
+    ],
+    "tail": [
+     0.03,
+     0.55
+    ],
+    "roof": [
+     0.47,
+     0.06
+    ]
+   }
+  },
+  "car_suv": {
+   "src": "art-src/props/traffic/part_02.png",
+   "w": 121,
+   "grade": {
+    "sat": 0.85,
+    "ink": 0.6,
+    "inkDark": 0.7,
+    "v": [
+     0.08,
+     0.85
+    ]
+   },
+   "anchors": {
+    "head": [
+     0.97,
+     0.56
+    ],
+    "tail": [
+     0.04,
+     0.5
+    ]
+   }
+  },
+  "car_van": {
+   "src": "art-src/props/traffic/part_03.png",
+   "w": 107,
+   "grade": {
+    "sat": 0.85,
+    "ink": 0.6,
+    "inkDark": 0.7,
+    "v": [
+     0.08,
+     0.85
+    ]
+   },
+   "anchors": {
+    "head": [
+     0.98,
+     0.6
+    ],
+    "tail": [
+     0.03,
+     0.6
+    ]
+   }
+  },
+  "carParked": {
+   "src": "art-src/props/traffic/part_00.png",
+   "w": 106,
+   "flip": true,
+   "oy": -4,
+   "grade": {
+    "sat": 0.6,
+    "ink": 0.3,
+    "inkDark": 0.7,
+    "v": [
+     0.28,
+     0.88
+    ]
+   },
+   "anchors": {
+    "hinge": [
+     0.54,
+     0.74
+    ],
+    "head": [
+     0.04,
+     0.53
+    ],
+    "tail": [
+     0.96,
+     0.46
+    ]
+   }
+  },
+  "cardoor": {
+   "src": "art-src/props/cardoor.png",
+   "w": 30,
+   "h": 45,
+   "rim": "ground"
+  },
+  "carFront": {
+   "src": "art-src/props/carFront.png",
+   "w": 72,
+   "ox": -36,
+   "grade": {
+    "sat": 0.85,
+    "ink": 0.6,
+    "inkDark": 0.7,
+    "v": [
+     0.08,
+     0.85
+    ]
+   }
+  },
+  "liftHall": {
+   "src": "art-src/props/lift/part_00.png",
+   "w": 90,
+   "hole": true,
+   "centerOn": "hole",
+   "anchors": {
+    "display": [
+     0.49,
+     0.09
+    ],
+    "call": [
+     0.83,
+     0.5
+    ]
+   }
+  },
+  "liftLeaf": {
+   "src": "art-src/props/lift/part_01.png",
+   "w": 22,
+   "h": 108
+  },
+  "liftCab": {
+   "src": "art-src/props/liftCab.png",
+   "w": 327,
+   "oy": 6,
+   "hole": true,
+   "anchors": {
+    "display": [
+     0.767,
+     0.214
+    ],
+    "panel": [
+     0.59,
+     0.489
+    ]
+   }
+  },
+  "mop": {
+   "src": "art-src/props/mop.png",
+   "h": 35,
+   "ox": 1.5,
+   "rim": "ground"
+  },
+  "stairsWall0": {
+   "src": "art-src/bg/stairs_mid_1/part_00.png",
+   "h": 150,
+   "oy": -10,
+   "grade": {
+    "sat": 0.7,
+    "ink": 0.3,
+    "inkDark": 0.7,
+    "v": [
+     0.3,
+     0.85
+    ]
+   }
+  },
+  "stairsWall1": {
+   "src": "art-src/bg/stairs_mid_1/part_01.png",
+   "h": 150,
+   "oy": -10,
+   "grade": {
+    "sat": 0.7,
+    "ink": 0.3,
+    "inkDark": 0.7,
+    "v": [
+     0.3,
+     0.85
+    ]
+   }
+  },
+  "stairsWall2": {
+   "src": "art-src/bg/stairs_mid_1/part_02.png",
+   "h": 150,
+   "oy": -10,
+   "grade": {
+    "sat": 0.7,
+    "ink": 0.3,
+    "inkDark": 0.7,
+    "v": [
+     0.3,
+     0.85
+    ]
+   }
   },
   "meal_hongshaorou": {
    "src": "art-src/props/meal_hongshaorou.png",
@@ -319,6 +877,66 @@
   "meal_takeout": {
    "src": "art-src/props/meal_takeout.png",
    "w": 96
+  },
+  "meal_malatang": {
+   "src": "art-src/props/meal_malatang.png",
+   "w": 96
+  },
+  "meal_hotpot": {
+   "src": "art-src/props/meal_hotpot.png",
+   "w": 96
+  },
+  "meal_dumplings": {
+   "src": "art-src/props/meal_dumplings.png",
+   "w": 96
+  },
+  "meal_feast": {
+   "src": "art-src/props/meal_feast.png",
+   "w": 96
+  },
+  "juzi_sit": {
+   "src": "art-src/props/juzi_sit.png",
+   "h": 40
+  },
+  "juzi_meow": {
+   "src": "art-src/props/juzi_meow.png",
+   "h": 41.6
+  },
+  "juzi_rub": {
+   "src": "art-src/props/juzi_rub.png",
+   "h": 46.3
+  },
+  "spouse_wife": {
+   "src": "art-src/props/spouse_wife.png",
+   "h": 44
+  },
+  "spouse_husband": {
+   "src": "art-src/props/spouse_husband.png",
+   "h": 44
+  },
+  "errandBox": {
+   "src": "art-src/props/parcel.png",
+   "fix": [
+    {
+     "op": "hue",
+     "from": [
+      20,
+      70
+     ],
+     "to": "#2E6BFF",
+     "sMin": 0.08,
+     "sMax": 0.34,
+     "vMin": 0.8,
+     "exclude": [
+      0.74,
+      0.62,
+      0.95,
+      0.9
+     ]
+    }
+   ],
+   "w": 29,
+   "rim": "float"
   }
  },
  "chars": {
@@ -366,6 +984,53 @@
     "shoe": [
      0.28,
      0.75
+    ]
+   }
+  },
+  "playerF": {
+   "parts": {
+    "head": "art-src/chars/playerF/parts/head.png",
+    "torso": "art-src/chars/playerF/parts/torso.png",
+    "armU": "art-src/chars/playerF/parts/upperArm.png",
+    "armL": "art-src/chars/playerF/parts/forearm.png",
+    "legU": "art-src/chars/playerF/parts/thigh.png",
+    "legL": "art-src/chars/playerF/parts/shin.png",
+    "shoe": "art-src/chars/playerF/parts/shoe.png"
+   },
+   "heads": {
+    "normal": "art-src/chars/playerF/heads/normal.png",
+    "panic": "art-src/chars/playerF/heads/panic.png",
+    "happy": "art-src/chars/playerF/heads/happy.png"
+   },
+   "pivots": {
+    "head": [
+     0.693,
+     0.558,
+     0.2525
+    ],
+    "torso": [
+     0.61,
+     0.96,
+     0.84
+    ],
+    "shoe": [
+     0.28,
+     0.75
+    ],
+    "head_normal": [
+     0.697,
+     0.527,
+     0.34
+    ],
+    "head_panic": [
+     0.697,
+     0.527,
+     0.34
+    ],
+    "head_happy": [
+     0.702,
+     0.524,
+     0.34
     ]
    }
   },
@@ -752,6 +1417,261 @@
      0.5,
      0.112,
      0.36
+    ]
+   }
+  },
+  "dad": {
+   "parts": {
+    "head": "art-src/chars/dad/parts/head.png",
+    "torso": "art-src/chars/dad/parts/torso.png",
+    "armU": "art-src/chars/dad/parts/upperArm.png",
+    "armL": "art-src/chars/dad/parts/forearm.png",
+    "legU": "art-src/chars/dad/parts/thigh.png",
+    "legL": "art-src/chars/dad/parts/shin.png",
+    "shoe": "art-src/chars/dad/parts/shoe.png"
+   },
+   "heads": {
+    "normal": "art-src/chars/dad/heads/normal.png",
+    "angry": "art-src/chars/dad/heads/angry.png",
+    "happy": "art-src/chars/dad/heads/happy.png"
+   },
+   "pivots": {
+    "head": [
+     0.56,
+     0.56,
+     0.34
+    ],
+    "head_normal": [
+     0.56,
+     0.56,
+     0.34
+    ],
+    "head_angry": [
+     0.56,
+     0.56,
+     0.34
+    ],
+    "head_happy": [
+     0.56,
+     0.56,
+     0.34
+    ],
+    "torso": [
+     0.5,
+     0.96,
+     0.84
+    ],
+    "shoe": [
+     0.28,
+     0.75
+    ],
+    "armL": [
+     0.5,
+     0.14,
+     0.5
+    ]
+   }
+  },
+  "dapeng": {
+   "parts": {
+    "head": "art-src/chars/dapeng/parts/head.png",
+    "torso": "art-src/chars/dapeng/parts/torso.png",
+    "armU": "art-src/chars/dapeng/parts/upperArm.png",
+    "armL": "art-src/chars/dapeng/parts/forearm.png",
+    "legU": "art-src/chars/dapeng/parts/thigh.png",
+    "legL": "art-src/chars/dapeng/parts/shin.png",
+    "shoe": "art-src/chars/dapeng/parts/shoe.png"
+   },
+   "heads": {
+    "normal": "art-src/chars/dapeng/heads/normal.png",
+    "angry": "art-src/chars/dapeng/heads/angry.png",
+    "happy": "art-src/chars/dapeng/heads/happy.png"
+   },
+   "pivots": {
+    "head": [
+     0.56,
+     0.55,
+     0.34
+    ],
+    "head_normal": [
+     0.56,
+     0.55,
+     0.34
+    ],
+    "head_angry": [
+     0.56,
+     0.55,
+     0.34
+    ],
+    "head_happy": [
+     0.56,
+     0.55,
+     0.34
+    ],
+    "torso": [
+     0.52,
+     0.96,
+     0.8
+    ],
+    "shoe": [
+     0.28,
+     0.75
+    ],
+    "armL": [
+     0.5,
+     0.12,
+     0.45
+    ]
+   }
+  },
+  "laolao": {
+   "parts": {
+    "head": "art-src/chars/laolao/parts/head.png",
+    "torso": "art-src/chars/laolao/parts/torso.png",
+    "armU": "art-src/chars/laolao/parts/upperArm.png",
+    "armL": "art-src/chars/laolao/parts/forearm.png",
+    "legU": "art-src/chars/laolao/parts/thigh.png",
+    "legL": "art-src/chars/laolao/parts/shin.png",
+    "shoe": "art-src/chars/laolao/parts/shoe.png"
+   },
+   "heads": {
+    "normal": "art-src/chars/laolao/heads/normal.png",
+    "angry": "art-src/chars/laolao/heads/angry.png",
+    "happy": "art-src/chars/laolao/heads/happy.png"
+   },
+   "pivots": {
+    "head": [
+     0.6,
+     0.58,
+     0.31
+    ],
+    "head_normal": [
+     0.6,
+     0.58,
+     0.31
+    ],
+    "head_angry": [
+     0.6,
+     0.58,
+     0.31
+    ],
+    "head_happy": [
+     0.6,
+     0.58,
+     0.31
+    ],
+    "torso": [
+     0.5,
+     0.96,
+     0.84
+    ],
+    "shoe": [
+     0.28,
+     0.75
+    ],
+    "armL": [
+     0.5,
+     0.15,
+     0.55
+    ]
+   }
+  },
+  "nainai": {
+   "parts": {
+    "head": "art-src/chars/nainai/parts/head.png",
+    "torso": "art-src/chars/nainai/parts/torso.png",
+    "armU": "art-src/chars/nainai/parts/upperArm.png",
+    "armL": "art-src/chars/nainai/parts/forearm.png",
+    "legU": "art-src/chars/nainai/parts/thigh.png",
+    "legL": "art-src/chars/nainai/parts/shin.png",
+    "shoe": "art-src/chars/nainai/parts/shoe.png"
+   },
+   "heads": {
+    "normal": "art-src/chars/nainai/heads/normal.png",
+    "angry": "art-src/chars/nainai/heads/angry.png",
+    "happy": "art-src/chars/nainai/heads/happy.png"
+   },
+   "pivots": {
+    "head": [
+     0.6,
+     0.57,
+     0.32
+    ],
+    "head_normal": [
+     0.6,
+     0.57,
+     0.32
+    ],
+    "head_angry": [
+     0.6,
+     0.57,
+     0.32
+    ],
+    "head_happy": [
+     0.6,
+     0.57,
+     0.32
+    ],
+    "torso": [
+     0.5,
+     0.96,
+     0.84
+    ],
+    "shoe": [
+     0.28,
+     0.75
+    ]
+   }
+  },
+  "duoduo": {
+   "parts": {
+    "head": "art-src/chars/duoduo/parts/head.png",
+    "torso": "art-src/chars/duoduo/parts/torso.png",
+    "armU": "art-src/chars/duoduo/parts/upperArm.png",
+    "armL": "art-src/chars/duoduo/parts/forearm.png",
+    "legU": "art-src/chars/duoduo/parts/thigh.png",
+    "legL": "art-src/chars/duoduo/parts/shin.png",
+    "shoe": "art-src/chars/duoduo/parts/shoe.png"
+   },
+   "heads": {
+    "normal": "art-src/chars/duoduo/heads/normal.png",
+    "angry": "art-src/chars/duoduo/heads/angry.png",
+    "happy": "art-src/chars/duoduo/heads/happy.png"
+   },
+   "pivots": {
+    "head": [
+     0.6,
+     0.58,
+     0.29
+    ],
+    "head_normal": [
+     0.6,
+     0.58,
+     0.29
+    ],
+    "head_angry": [
+     0.6,
+     0.58,
+     0.29
+    ],
+    "head_happy": [
+     0.6,
+     0.58,
+     0.29
+    ],
+    "torso": [
+     0.55,
+     0.96,
+     0.84
+    ],
+    "shoe": [
+     0.28,
+     0.75
+    ],
+    "armL": [
+     0.5,
+     0.12,
+     0.35
     ]
    }
   }

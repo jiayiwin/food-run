@@ -28,17 +28,6 @@ export const canvas = wx.createCanvas();
 canvas.width = Math.round(screen.width * screen.dpr);
 canvas.height = Math.round(screen.height * screen.dpr);
 
-// 离屏画布（缓存背景、预渲染文字等）
-export function offscreen(w, h) {
-  const c = wx.createCanvas();
-  c.width = Math.ceil(w * screen.scale * screen.dpr);
-  c.height = Math.ceil(h * screen.scale * screen.dpr);
-  const g = c.getContext('2d');
-  const k = screen.scale * screen.dpr;
-  g.setTransform(k, 0, 0, k, 0, 0);
-  return { canvas: c, ctx: g, w, h };
-}
-
 // 触摸：回调拿到逻辑坐标
 export function onTouch(handlers) {
   const map = (e, list) => Array.from(list || []).map(t => ({ id: t.identifier, x: (t.clientX - screen.offsetX) / screen.scale, y: t.clientY / screen.scale, t: now() }));   // 统一用 now()：微信的 e.timeStamp 和帧循环不是同一个时钟
@@ -76,27 +65,31 @@ export function loadImage(src) {
 
 // 音频：BGM 一路循环，音效按名字建对象池
 const sounds = {};
-let muted = false;
+let muted = false, duckK = 1;              // duckK：BGM 临时压低的倍率（电梯里 0.6）。暂停 / 切后台 / 切静音再恢复时照样按它算
+const bgmVol = v => (muted ? 0 : v * duckK);
 export const audio = {
   get muted() { return muted; },
-  setMuted(m) { muted = !!m; for (const s of Object.values(sounds)) if (s.loop) s.volume = muted ? 0 : s._vol; },
+  get duckK() { return duckK; },
+  setMuted(m) { muted = !!m; for (const s of Object.values(sounds)) if (s.loop) s.volume = bgmVol(s._vol); },
   // 同一首：停过就重新播（之前判断 src 相同直接 return，导致第二局起没有音乐）
   bgm(src, volume = 0.5) {
     const b = sounds.__bgm;
     if (b && b._key === src) {
-      b._vol = volume; b.volume = muted ? 0 : volume;
+      b._vol = volume; b.volume = bgmVol(volume);
       if (!b._on) { b._on = true; try { b.play(); } catch (e) { /* ignore */ } }
       return;
     }
     if (b) { try { b.stop(); b.destroy(); } catch (e) { /* ignore */ } }
     const a = wx.createInnerAudioContext({ useWebAudioImplement: false });
-    a.src = src; a.loop = true; a._key = src; a._vol = volume; a._on = true; a.volume = muted ? 0 : volume;
+    a.src = src; a.loop = true; a._key = src; a._vol = volume; a._on = true; a.volume = bgmVol(volume);
     try { a.play(); } catch (e) { /* 首次交互前可能失败 */ }
     sounds.__bgm = a;
   },
   // 部分机型要等第一次触摸才允许出声：按下时再试一次
   kick() { const b = sounds.__bgm; if (b && b._on) { try { b.play(); } catch (e) { /* ignore */ } } },
   stopBgm() { const b = sounds.__bgm; if (b) { b._on = false; try { b.stop(); } catch (e) { /* ignore */ } } },
+  // 临时压低 BGM（电梯里 0.6），duck(1) 恢复；不换曲、不停。倍率记下来：暂停后继续、切后台回来、切静音都不丢
+  duck(k = 1) { duckK = k; const b = sounds.__bgm; if (b) b.volume = bgmVol(b._vol); },
   play(name, src, volume = 0.8) {
     if (muted) return;
     const pool = sounds[name] || (sounds[name] = []);
@@ -113,10 +106,6 @@ export const audio = {
 // 启动参数（分享卡片带来的 seed / 到家时间）
 export function launchQuery() {
   try { return (wx.getLaunchOptionsSync && wx.getLaunchOptionsSync().query) || {}; } catch (e) { return {}; }
-}
-// 本次进入的参数（热启动从分享卡回来时和 launchQuery 不一样）
-export function enterQuery() {
-  try { return (wx.getEnterOptionsSync && wx.getEnterOptionsSync().query) || launchQuery(); } catch (e) { return launchQuery(); }
 }
 // 键盘（PC 版微信 / 浏览器调试）
 export function onKey(fn) {
@@ -135,6 +124,10 @@ export function onAppError(fn) {
 }
 export function showAlert(title, content) {
   try { wx.showModal({ title, content, showCancel: false }); } catch (e) { /* ignore */ }
+}
+// 复制到剪贴板（开发版结算页复制埋点用）
+export function copyText(data) {
+  try { wx.setClipboardData({ data: String(data) }); return true; } catch (e) { return false; }
 }
 
 // 生命周期
@@ -164,13 +157,6 @@ export function rawCanvas(w, h) {
 }
 export function exportCanvas(c, w, h) {
   try { return c.toTempFilePathSync({ x: 0, y: 0, width: w, height: h, destWidth: w, destHeight: h }); } catch (e) { return ''; }
-}
-export function snapshot(x, y, w, h) {
-  // 把画布的一块存成临时图片（分享用）
-  try {
-    const k = screen.scale * screen.dpr;
-    return canvas.toTempFilePathSync({ x: x * k, y: y * k, width: w * k, height: h * k, destWidth: 500, destHeight: Math.round(500 * h / w) });
-  } catch (e) { return ''; }
 }
 
 export const now = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());

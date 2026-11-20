@@ -7,7 +7,7 @@ export const hash = n => { let h = (n | 0) * 374761393 + 668265263; h = (h ^ (h 
 // 路段主题
 export const THEMES = {
   office: { name: '公司', floor: '#c9b8d9', floorLine: '#b3a1c6', wall: '#f3e6ff', trim: '#d9c6ec' },
-  street: { name: '街道', floor: '#cfc6bd', floorLine: '#b8aea3', curb: '#8f8a86', road: '#5b5866' },
+  street: { name: '街道', floor: '#d8d0c6', floorLine: '#b8aea3', curb: '#8f8a86', road: '#5b5866' },
   park: { name: '小区', floor: '#d6c8a8', floorLine: '#c2b28f', grass: '#8fcf7a' },
   home: { name: '家门口', floor: '#e3c9a6', floorLine: '#cfb08a' },
 };

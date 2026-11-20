@@ -1,5 +1,6 @@
 // 绘图小工具：圆角矩形、描边文字、胶囊、阴影。所有尺寸都是逻辑像素。
 export const INK = '#2b2233';   // 统一的描边色（深紫黑），贴纸感就靠它
+import { say } from '../data/address.js';
 
 export function roundRect(g, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
@@ -21,9 +22,13 @@ export function card(g, x, y, w, h, r, fill, { stroke = INK, lw = 2.5, shadow = 
 
 const FONT = '"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif';
 export function font(size, weight = 700) { return `${weight} ${size}px ${FONT}`; }
+// 游戏里用到的字号（gfx.text / measure / 烘焙文字的 size）：开局前在标题页分帧测好字体度量（main.js 的 fontQueue，700 / 400 两种粗细）。
+// 新加字号要补进来：test/scene.test.js 会扫 js/ 源码里所有「size: 整数」（≥6，粒子的小尺寸不算）核对
+export const FONT_SIZES = [6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 34, 38, 40, 44, 50, 56, 58, 64, 84];
 
 // 描边字：先粗描边再填色
 export function text(g, str, x, y, { size = 16, weight = 700, color = '#fff', stroke = INK, lw = 0, align = 'center', baseline = 'middle', maxW } = {}) {
+  str = say(str);                              // {称呼} 按当前主角换词
   g.font = font(size, weight);
   g.textAlign = align; g.textBaseline = baseline;
   if (maxW) { const w = g.measureText(str).width; if (w > maxW) { g.font = font(Math.floor(size * maxW / w), weight); } }
@@ -33,6 +38,7 @@ export function text(g, str, x, y, { size = 16, weight = 700, color = '#fff', st
 
 // 按宽度自动折行（中文逐字），返回行数组
 export function wrap(g, str, maxW, size, weight = 700) {
+  str = say(str);
   g.font = font(size, weight);
   const lines = []; let line = '';
   for (const ch of str) {

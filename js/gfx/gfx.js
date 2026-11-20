@@ -10,6 +10,7 @@
 //   gfx.vgrad(x, y, w, h, stops, { alpha })      竖直渐变（stops: [[0, '#fff'], [1, '#000']]）
 //   gfx.end()                                     每帧结束（WebGL 后端在这里统一提交）
 import { canvas, screen } from '../platform/index.js';
+import { say } from '../data/address.js';   // 文案里的 {称呼} 按当前主角换词（见 js/data/address.js）：画字、量宽、预热都在这里换
 
 const stack = [];
 let m = [1, 0, 0, 1, 0, 0], a = 1;
@@ -77,7 +78,7 @@ export const gfx = {
     if (str == null || str === '') return;
     const al = a * (o.alpha ?? 1);
     if (al <= 0.003) return;
-    B.text(String(str), mul(m, [1, 0, 0, 1, x, y]), o, al);
+    B.text(say(String(str)), mul(m, [1, 0, 0, 1, x, y]), o, al);
   },
   vgrad(x, y, w, h, stops, o = {}) {
     const al = a * (o.alpha ?? 1);
@@ -95,9 +96,9 @@ export const gfx = {
   },
   warmFont(size, weight = 700) { if (B && B.warmFont) B.warmFont(size, weight); },
   preload(src) { if (B && B.preload && src) B.preload(src); },
-  warm(str, o = {}) { if (B && B.warm && str) B.warm(String(str), o); },
+  warm(str, o = {}) { if (B && B.warm && str) B.warm(say(String(str)), o); },
   // 文字宽度（逻辑像素），排版用
-  measure(str, o = {}) { return B.measure(String(str), o); },
+  measure(str, o = {}) { return B.measure(say(String(str)), o); },
 };
 
 export { canvas };

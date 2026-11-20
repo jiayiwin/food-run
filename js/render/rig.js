@@ -2,13 +2,12 @@
 // 坐标：原点在脚底中点，y 向下为正（人物向上长，所以身体部件 y 是负数）。默认身高约 64 逻辑像素。
 import { limb, blob, roundRect, INK, lerp } from './draw.js';
 import { bake, fromImage } from '../gfx/tex.js';
+import { HERO_LOOKS } from '../data/heroes.js';
 
 const D = Math.PI / 180;
 
-// 外观：颜色和配件
-export const LOOKS = {
-  player: { skin: '#ffd2b0', hair: '#2b2233', hairStyle: 'messy', shirt: '#ffffff', jacket: '#4b7bec', pants: '#2f3b52', shoes: '#ff6b5a', tie: '#ff6b5a', bag: '#f7b731', scale: 1 },
-};
+// 外观：颜色和配件。主角两套（男 player / 女 playerF）的数据在 js/data/heroes.js，NPC 的在 looks.js
+export const LOOKS = { ...HERO_LOOKS };
 
 // 姿势：所有角度单位度；sh/el 肩肘，hip/kn 髋膝；l / r 是后侧 / 前侧（画在后面的先画）
 export const POSE_BASE = { lean: 0, bob: 0, head: 0, shL: 10, elL: 30, shR: -10, elR: 30, hipL: 0, knL: 0, hipR: 0, knR: 0, squash: 1 };
@@ -58,6 +57,15 @@ export function mixPose(a, b, t) {
   const o = {};
   for (const k of Object.keys(POSE_BASE)) o[k] = lerp(a[k] ?? POSE_BASE[k], b[k] ?? POSE_BASE[k], t);
   return o;
+}
+
+// 前手（画在前面那只手）的位置：骨骼坐标（原点脚底、y 向上为负、朝右），乘上 look.scale × scale、翻转后加到人的位置上。
+// 家门口奶奶端的那碗饺子画在这里（碗要端平，不能跟着手腕转）
+export function handPoint(look, pose, { flip = 1, scale = 1 } = {}) {
+  const k = (look.scale || 1) * scale, hipY = -25 + (pose.bob || 0), lean = (pose.lean || 0) * D;
+  const shX = Math.sin(lean) * 17, shY = hipY - Math.cos(lean) * 17;
+  const p = chain(shX, shY + 3, 9.5, pose.shR, 9, pose.elR)[2];
+  return [p[0] * k * flip, p[1] * k * (pose.squash || 1)];
 }
 
 // 正向运动学：从根（髋）出发算各关节位置
@@ -167,6 +175,7 @@ function torsoVector(g, look, torsoLen = 17) {
   g.fillStyle = look.pants; roundRect(g, -8, -4, 16, 9, 4); g.fill(); g.lineWidth = 2.4; g.strokeStyle = INK; g.stroke();
   g.fillStyle = look.jacket || look.shirt; roundRect(g, -9, -torsoLen - 3, 18, torsoLen + 5, 7); g.fill(); g.lineWidth = 2.4; g.strokeStyle = INK; g.stroke();
   if (look.jacket && look.shirt) { g.fillStyle = look.shirt; g.beginPath(); g.moveTo(-2.5, -torsoLen - 2); g.lineTo(3.5, -torsoLen - 2); g.lineTo(0.5, -torsoLen + 8); g.closePath(); g.fill(); }
+  if (look.bow) { g.fillStyle = look.bow; for (const s of [-1, 1]) { g.beginPath(); g.moveTo(0.5, -torsoLen + 2); g.lineTo(0.5 + s * 4, -torsoLen); g.lineTo(0.5 + s * 4, -torsoLen + 5); g.closePath(); g.fill(); } }   // 领口小蝴蝶结
   if (look.tie) { g.fillStyle = look.tie; g.beginPath(); g.moveTo(0.5, -torsoLen + 1); g.lineTo(2.6, -torsoLen + 4); g.lineTo(0.5, -torsoLen + 13); g.lineTo(-1.6, -torsoLen + 4); g.closePath(); g.fill(); }
   if (look.apron) { g.fillStyle = look.apron; roundRect(g, -6, -torsoLen + 4, 12, torsoLen + 2, 3); g.fill(); g.lineWidth = 1.6; g.strokeStyle = INK; g.stroke(); }
   if (look.vest) { g.fillStyle = look.vest; roundRect(g, -8, -torsoLen - 3, 16, torsoLen + 6, 6); g.fill(); g.lineWidth = 2.4; g.strokeStyle = INK; g.stroke(); g.fillStyle = '#fff8'; g.fillRect(-8, -9, 16, 3); }
@@ -192,6 +201,10 @@ function head(g, look) {
     case 'slick': g.beginPath(); g.moveTo(-r, 0); g.quadraticCurveTo(-r, -r - 3, 4, -r - 1); g.quadraticCurveTo(r + 2, -r + 3, r, -1); g.lineTo(-r, 0); g.fill(); break;
     case 'helmet': g.beginPath(); g.arc(0, -1, r + 2, Math.PI, 0); g.lineTo(r + 5, 0); g.lineTo(-r - 2, 0); g.closePath(); g.fill(); g.lineWidth = 2.2; g.strokeStyle = INK; g.stroke(); break;
     case 'pompadour': g.beginPath(); g.moveTo(-r - 1, 2); g.quadraticCurveTo(-r - 4, -r - 2, -2, -r - 10); g.quadraticCurveTo(r + 10, -r - 16, r + 8, -r + 2); g.quadraticCurveTo(r, -r + 1, r - 2, -4); g.quadraticCurveTo(0, -6, -r - 1, 2); g.fill(); g.lineWidth = 1.6; g.strokeStyle = INK; g.stroke(); g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(2, -r - 7, 6, 2, -0.3, 0, Math.PI * 2); g.fill(); break;
+    case 'ponytail':   // 高马尾：脑后一束往后甩 + 斜刘海
+      g.beginPath(); g.moveTo(-r + 2, -r + 4); g.quadraticCurveTo(-r - 12, -r - 2, -r - 9, 6); g.quadraticCurveTo(-r - 4, -2, -r + 3, -r + 9); g.closePath(); g.fill();
+      g.beginPath(); g.moveTo(-r - 1, 3); g.quadraticCurveTo(-r, -r - 4, 2, -r - 2); g.quadraticCurveTo(r + 3, -r + 1, r - 1, -1); g.quadraticCurveTo(5, -9, -3, -4); g.quadraticCurveTo(-8, -2, -r - 1, 3); g.fill();
+      g.fillStyle = '#ff6b5a'; g.beginPath(); g.arc(-r + 2, -r + 6, 2.4, 0, Math.PI * 2); g.fill(); break;
     case 'perm': for (let i = -3; i <= 3; i++) { g.beginPath(); g.arc(i * 3.6, -r + 1 + Math.abs(i) * 1.2, 5, 0, Math.PI * 2); g.fill(); } break;
     default: break;
   }
@@ -289,10 +302,10 @@ export function person(gfx, x, y, look, pose, { flip = 1, scale = 1, alpha = 1, 
   const front = () => { limb2(af, 'armU', 'armL', V.armU, V.armL, 9.5, 9); hand(af[2]); if (V.hold && !handArt) gfx.draw(V.hold, af[2][0], af[2][1]); };
   if (raised) front();
 
-  const hx = shX + Math.sin(lean) * 11, hy = shY - 11, hr = (pose.head || 0) * D;
+  const hx = shX + Math.sin(lean) * 11, hy = shY - 11, hr = (pose.head || 0) * D, hk = look.headK || 1;   // headK：头再放大一点（5 岁的朵朵：大头小身子）
   const hd = A && pickHead(A, look);
-  if (hd) gfx.draw(fromImage(`art|${A.src || ''}|head|${hd.sx},${hd.sy}`, A.img, hd.sw, hd.sh, { sx: hd.sx, sy: hd.sy, sw: hd.sw, sh: hd.sh, ox: hd.px, oy: hd.py }), hx, hy, { rot: hr, sx: kA, sy: kA });
-  else gfx.draw(vecHead(look), hx, hy, { rot: hr });
+  if (hd) gfx.draw(fromImage(`art|${A.src || ''}|head|${hd.sx},${hd.sy}`, A.img, hd.sw, hd.sh, { sx: hd.sx, sy: hd.sy, sw: hd.sw, sh: hd.sh, ox: hd.px, oy: hd.py }), hx, hy, { rot: hr, sx: kA * hk, sy: kA * hk });
+  else gfx.draw(vecHead(look), hx, hy, { rot: hr, sx: hk, sy: hk });
 
   const lf = leg(pose.hipR, pose.knR);
   limb2(lf, 'legU', 'legL', V.legU, V.legL, 12, 12);

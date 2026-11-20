@@ -1,5 +1,5 @@
-// 主角：跑 / 跳 / 急降 / 滑铲 / 踉跄。纯逻辑，输入是「按下 / 松开 / 下滑」三种事件。
-import { TUNE } from '../data/tune.js';
+// 主角：跑 / 跳 / 急降 / 滑铲 / 踉跄 / 冲刺。纯逻辑，输入是「跳 / 下滑 / 冲刺」三种事件。
+import { TUNE, DASH } from '../data/tune.js';
 
 export function makePlayer() {
   return {
@@ -10,6 +10,7 @@ export function makePlayer() {
     slideT: 0, slideTotal: 0,
     coyoteT: 0, bufferJump: 0, bufferSlide: 0,
     stumbleT: 0, invulnT: 0,
+    dashT: 0, dashCd: 0,         // 冲刺剩余时间、冷却
     fastFalling: false,
     runPhase: 0,
     events: [],                  // 本帧发生的事（jump / land / slide / stumble…），给音效和特效用
@@ -47,9 +48,17 @@ export function swipeDown(p) {
   if (!p.onGround) { p.vy = Math.max(p.vy, TUNE.fastFallV); p.fastFalling = true; p.events.push('fastfall'); return; }
   startSlide(p);                                          // 滑铲中再下滑：刷新时长
 }
+// 冲刺：踉跄时冲不了；refresh（刚进 ▶▶ 区）先清掉冷却。成功返回 true（能不能冲的场景判断在 run.js 的 canDash 里）
+export function dash(p, refresh = false) {
+  if (p.state === 'stumble') return false;
+  if (refresh) p.dashCd = 0;
+  if (p.dashCd > 0) return false;
+  p.dashT = DASH.time; p.dashCd = DASH.cooldown;
+  return true;
+}
 export function stumble(p) {
   if (p.invulnT > 0) return false;
-  p.state = 'stumble'; p.stumbleT = TUNE.stumbleTime; p.invulnT = TUNE.invulnAfterHit; p.slideT = 0;
+  p.state = 'stumble'; p.stumbleT = TUNE.stumbleTime; p.invulnT = TUNE.invulnAfterHit; p.slideT = 0; p.dashT = 0;
   p.events.push('stumble');
   return true;
 }
@@ -61,6 +70,8 @@ export function stepPlayer(p, dt, speed, { supportTop = 0, overHole = false, cei
   p.invulnT = Math.max(0, p.invulnT - dt);
   p.bufferJump = Math.max(0, p.bufferJump - dt);
   p.bufferSlide = Math.max(0, p.bufferSlide - dt);
+  p.dashT = Math.max(0, p.dashT - dt);
+  p.dashCd = Math.max(0, p.dashCd - dt);
   p.runPhase = (p.runPhase + dt * speed / 120) % 1;
 
   if (p.state === 'stumble') {

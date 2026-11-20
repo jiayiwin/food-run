@@ -9,9 +9,10 @@ export function puddle(g, x, y, w = 70, t = 0) {
   g.fillStyle = '#c8e6ff'; g.beginPath(); g.ellipse(x + w / 2 - 10 + Math.sin(t * 4) * 3, y - 4, 10, 2.4, 0, 0, Math.PI * 2); g.fill();
 }
 
-export function curb(g, x, y, w = 44, h = 34) {        // 台阶 / 路沿，顶面能站
+export function curb(g, x, y, w = 44, h = 34, tread = null) {   // 台阶 / 路沿，顶面能站；tread：顶面一条踏步边（和美术图的 post.tread 同色，标出「能站」）
   g.fillStyle = '#b7b0a8'; roundRect(g, x, y - h, w, h, 3); g.fill(); stroke(g);
   g.fillStyle = '#d6d0c8'; g.fillRect(x + 2, y - h + 2, w - 4, 6);
+  if (tread) { g.fillStyle = tread; roundRect(g, x + 1, y - h + 1, w - 2, 4, 2); g.fill(); g.fillStyle = INK; g.fillRect(x + 2, y - h + 5, w - 4, 1); }
 }
 
 export function boxes(g, x, y, w = 48, h = 56) {       // 快递纸箱堆
@@ -37,11 +38,11 @@ export function bar(g, x, y, w = 60, bottom = 40, top = 110, kind = 'constructio
 
 // 迎面骑车的人：整体 72×60
 const CYCLIST = { skin: '#f2c6a0', hair: '#5a3e2b', hairStyle: 'slick', shirt: '#ffffff', jacket: '#46a35e', pants: '#34495e', shoes: '#2b2233', scale: 0.9 };
-export function bike(g, x, y, w = 72, t = 0, rider = CYCLIST, flip = -1) {
+export function bike(g, x, y, w = 72, t = 0, rider = CYCLIST, flip = -1, frame = '#ff6b5a') {
   const cx = x + w / 2;
   const wheel = (wx) => { g.beginPath(); g.arc(wx, y - 13, 12, 0, Math.PI * 2); g.lineWidth = 3; g.strokeStyle = INK; g.stroke(); g.save(); g.translate(wx, y - 13); g.rotate(-t * 12 * flip); g.beginPath(); g.moveTo(-10, 0); g.lineTo(10, 0); g.moveTo(0, -10); g.lineTo(0, 10); g.lineWidth = 1.2; g.stroke(); g.restore(); };
   wheel(cx - 22); wheel(cx + 22);
-  g.lineWidth = 3.4; g.strokeStyle = '#ff6b5a'; g.lineCap = 'round';
+  g.lineWidth = 3.4; g.strokeStyle = frame; g.lineCap = 'round';
   g.beginPath(); g.moveTo(cx - 22, y - 13); g.lineTo(cx - 4, y - 30); g.lineTo(cx + 14, y - 30); g.lineTo(cx + 22, y - 13); g.moveTo(cx - 4, y - 30); g.lineTo(cx + 2, y - 13); g.lineTo(cx - 22, y - 13); g.stroke();
   if (rider) drawPerson(g, cx - 4 * flip, y + 6, rider, bikePose(t * 1.6 % 1), { flip });   // 屁股落在车座（y-30）上
   // 车铃
@@ -50,23 +51,28 @@ export function bike(g, x, y, w = 72, t = 0, rider = CYCLIST, flip = -1) {
 
 // 外卖电动车（同向慢行）：80×58
 const RIDER = { skin: '#f2c6a0', hair: '#f7b731', hairStyle: 'helmet', shirt: '#f7b731', jacket: '#f7b731', pants: '#34495e', shoes: '#2b2233', scale: 0.9 };
-export function ebike(g, x, y, w = 80, t = 0, rider = true) {
+export function ebike(g, x, y, w = 80, t = 0, rider = true, body = '#4bb3a8') {
   const cx = x + w / 2;
   for (const wx of [cx - 26, cx + 26]) { g.beginPath(); g.arc(wx, y - 11, 10, 0, Math.PI * 2); g.fillStyle = '#2b2233'; g.fill(); g.fillStyle = '#9aa3b5'; g.beginPath(); g.arc(wx, y - 11, 4, 0, Math.PI * 2); g.fill(); }
-  g.fillStyle = '#4bb3a8'; roundRect(g, cx - 30, y - 30, 60, 14, 6); g.fill(); stroke(g);
-  g.fillStyle = '#4bb3a8'; g.beginPath(); g.moveTo(cx + 18, y - 30); g.lineTo(cx + 28, y - 52); g.lineTo(cx + 32, y - 52); g.lineTo(cx + 26, y - 26); g.fill(); stroke(g, 2);
+  g.fillStyle = body; roundRect(g, cx - 30, y - 30, 60, 14, 6); g.fill(); stroke(g);
+  g.fillStyle = body; g.beginPath(); g.moveTo(cx + 18, y - 30); g.lineTo(cx + 28, y - 52); g.lineTo(cx + 32, y - 52); g.lineTo(cx + 26, y - 26); g.fill(); stroke(g, 2);
   // 外卖箱
   g.fillStyle = '#f7b731'; roundRect(g, cx - 38, y - 62, 30, 30, 4); g.fill(); stroke(g);
   g.fillStyle = INK; g.font = 'bold 9px sans-serif'; g.textAlign = 'center'; g.fillText('外卖', cx - 23, y - 44);
   if (rider) drawPerson(g, cx - 4, y + 1, RIDER, { ...bikePose(0.25), hipR: 70, knR: 70, hipL: 60, knL: 60 }, { flip: 1 });   // 坐在车座上，脚踩踏板
 }
 
-// 遛狗绳：大妈在左、狗在右，中间一根绳（离地 30）
+// 遛狗绳：狗在右，绳子从大妈手里（x − 4, −36）拉到狗脖子。大妈单独画（leashLady，不加外圈：她不会撞，绳和狗才会）。
+// 绳子和美术图换色后一样：4px 荧光绿 #B6F23A + 墨线，在红店面前也看得见
 const AUNTIE = { skin: '#f2c6a0', hair: '#7a4a3a', hairStyle: 'perm', shirt: '#ff6b9d', jacket: '#ff6b9d', pants: '#5a4a7a', shoes: '#2b2233', scale: 0.92 };
 export function leash(g, x, y, w = 120, t = 0) {
-  drawPerson(g, x - 16, y - 4, AUNTIE, { ...runPose(0), lean: 0, hipR: 6, hipL: -6, knR: 4, knL: 4, shR: 70, elR: 10, shL: -10, elL: 20, bob: 0 }, { flip: 1 });
   dog(g, x + w - 14, y, t);
-  g.strokeStyle = '#e04a4a'; g.lineWidth = 2; g.beginPath(); g.moveTo(x - 4, y - 36); g.quadraticCurveTo(x + w / 2, y - 14 + Math.sin(t * 6) * 3, x + w - 24, y - 20); g.stroke();
+  const rope = () => { g.beginPath(); g.moveTo(x - 4, y - 36); g.quadraticCurveTo(x + w / 2, y - 14 + Math.sin(t * 6) * 3, x + w - 24, y - 20); };
+  g.lineCap = 'round'; rope(); g.strokeStyle = INK; g.lineWidth = 6; g.stroke();
+  rope(); g.strokeStyle = '#B6F23A'; g.lineWidth = 4; g.stroke();
+}
+export function leashLady(g, x, y) {
+  drawPerson(g, x - 16, y - 4, AUNTIE, { ...runPose(0), lean: 0, hipR: 6, hipL: -6, knR: 4, knL: 4, shR: 70, elR: 10, shL: -10, elL: 20, bob: 0 }, { flip: 1 });
 }
 export function dog(g, x, y, t = 0) {
   const b = Math.sin(t * 14) * 2;
@@ -96,7 +102,7 @@ export function wetSign(g, x, y) {       // 小心地滑（公司路段的「台
 export function officeChair(g, x, y, t = 0) {
   g.fillStyle = '#2b2233'; g.fillRect(x + 18, y - 22, 4, 16);
   for (const dx of [4, 20, 36]) { g.beginPath(); g.arc(x + dx, y - 3, 3, 0, Math.PI * 2); g.fill(); }
-  g.fillStyle = '#4b7bec'; roundRect(g, x + 2, y - 30, 36, 9, 4); g.fill(); stroke(g, 2);
+  g.fillStyle = '#E0409A'; roundRect(g, x + 2, y - 30, 36, 9, 4); g.fill(); stroke(g, 2);   // 和美术图换色后一样：品红（不和地面的浅紫撞色）
   roundRect(g, x + 26, y - 44, 10, 18, 4); g.fill(); stroke(g, 2);
 }
 

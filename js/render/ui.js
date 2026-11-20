@@ -1,15 +1,20 @@
 // 界面：HUD、读题气泡、A/B 卡、来电、便利店、提示、路段字卡、过场、晚饭演出、暂停。全部通过 gfx 绘制。
-import { COURSE, RES, CHASE } from '../data/tune.js';
+import { RES, CHASE } from '../data/tune.js';
 import { NPCS, MOM } from '../data/npcs.js';
 import { STORE, CALLERS } from '../data/events.js';
-import { isExcuse } from '../game/choice.js';
+import { isExcuse, choiceShown } from '../game/choice.js';
 import { clockMin, fmtClock } from '../game/run.js';
 import { roundRect, INK, text as drawText, ease, clamp, lerp } from './draw.js';
 import { drawPerson, person, idlePose, POSE_BASE } from './rig.js';
-import { lookOf, PLAYER } from './looks.js';
+import { lookOf, hero } from './looks.js';
 import { gfx } from '../gfx/gfx.js';
-import { bake, fromImage, BAKE_RES } from '../gfx/tex.js';
+import { bake, bakeTemp, makeLru, fromImage, BAKE_RES } from '../gfx/tex.js';
 import { mealArt } from './art.js';
+import { say } from '../data/address.js';
+import { MEMBERS, DOOR_MARKS, FAMILIES } from '../data/family.js';
+import { memberOf, doorMark, errandLeft, etaMin } from '../game/story.js';
+import { iconTex, ITEM_SHAPE, catTex, dinnerBg, dinnerTable, drawDinnerPeople, drawDinnerTableTop, dinnerHeroDx } from './homes.js';
+import { propArt } from './art.js';
 
 const TAG_COLORS = { 工作: '#3d7ad6', 身体: '#2ecc71', 家里: '#ff8a5c', 没钱: '#a1887f', 装傻: '#9b59b6', 真话: '#f7b731', 顶嘴: '#e74c3c', 顺从: '#7f8c8d', 花钱: '#16a085' };
 
@@ -19,6 +24,7 @@ const text = (s, x, y, o) => gfx.text(s, x, y, o);
 // 按宽度折行（中文逐字）
 const wrapCache = new Map();
 function wrap(str, maxW, size, weight = 700) {
+  str = say(str);                       // {称呼} 先换成当前主角的词再折行
   const key = `${str}|${maxW}|${size}|${weight}`;
   const hit = wrapCache.get(key);
   if (hit) return hit;
@@ -75,18 +81,56 @@ const itemTex = id => bake(`ico|item|${id}`, [-30, -36, 60, 60], g => {
     for (const [dy, c] of [[-20, '#f5deb3'], [-8, '#fff'], [4, '#ffcc80']]) { g.fillStyle = c; g.beginPath(); g.arc(0, dy, 7, 0, Math.PI * 2); g.fill(); g.lineWidth = 1.6; g.strokeStyle = INK; g.stroke(); }
   } else { g.fillStyle = '#e74c3c'; roundRect(g, -11, -24, 22, 44, 5); g.fill(); g.stroke(); drawText(g, '⚡', 0, -2, { size: 16, color: '#ffd166' }); }
 });
+// 路线卡右上角的小图：之字台阶（楼梯）/ 方框里上下三角（电梯），18×18、1.6px 墨线
+const routeIcon = r => bake(`ico|route|${r}`, [-10, -10, 20, 20], g => {
+  g.lineWidth = 1.6; g.strokeStyle = '#7D6E8F'; g.lineJoin = 'round';
+  if (r === 'stairs') { g.beginPath(); g.moveTo(-8, 8); g.lineTo(-8, 3); g.lineTo(-3, 3); g.lineTo(-3, -2); g.lineTo(2, -2); g.lineTo(2, -7); g.lineTo(8, -7); g.stroke(); }
+  else {
+    roundRect(g, -8, -9, 16, 18, 2); g.stroke(); g.fillStyle = '#7D6E8F';
+    g.beginPath(); g.moveTo(0, -6); g.lineTo(4, -1.5); g.lineTo(-4, -1.5); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(0, 6); g.lineTo(4, 1.5); g.lineTo(-4, 1.5); g.closePath(); g.fill();
+  }
+});
 export function avatarTex(npc) {
-  const look = lookOf(npc), art = look.art ? 1 : 0;
-  return bake(`avatar|${npc}|${art}`, [-22, -22, 44, 44], g => {
+  if (MEMBERS[npc] && MEMBERS[npc].cat) {                 // 橘子：坐姿图的上半截（头）
+    const a = propArt('juzi_sit');
+    return bake(`avatar|${npc}|${a ? 1 : 0}`, [-22, -22, 44, 44], g => {
+      g.save(); g.beginPath(); g.arc(0, 0, 20, 0, Math.PI * 2); g.fillStyle = '#f39c3c55'; g.fill(); g.clip();
+      if (a) { const k = 50 / a.h; g.drawImage(a.img, -a.w * k / 2 + 2, -16, a.w * k, a.h * k); }
+      else { g.fillStyle = '#f39c3c'; g.beginPath(); g.arc(2, 4, 14, 0, Math.PI * 2); g.fill(); }
+      g.restore(); g.beginPath(); g.arc(0, 0, 20, 0, Math.PI * 2); g.lineWidth = 2; g.strokeStyle = INK; g.stroke();
+    });
+  }
+  const look = lookOf(npc), art = look.art ? 1 : 0, fr = AVATAR_FRAME[look.id] || AVATAR_FRAME.none;
+  return bake(`avatar|${look.id || npc}|${art}`, [-22, -22, 44, 44], g => {     // 'player' 跟着当前主角换（按外观 id 缓存）
     g.save(); g.beginPath(); g.arc(0, 0, 20, 0, Math.PI * 2);
     g.fillStyle = (look.color || '#dddddd') + '55'; g.fill(); g.clip();
     const s = 20 / 16;
-    drawPerson(g, -4 * s, 52 * s, look, { ...POSE_BASE, shR: -20, shL: 20 }, { scale: s });
+    g.translate(fr.dx, fr.dy); g.scale(fr.k, fr.k);
+    drawPerson(g, -4 * s, 52 * s, look, { ...POSE_BASE, shR: -20, shL: 20 }, { scale: s / (look.scale || 1) });   // 头像按头的大小来：朵朵（0.62 倍）、奶奶（0.9 倍）的头也填满圆
     g.restore();
     g.beginPath(); g.arc(0, 0, 20, 0, Math.PI * 2); g.lineWidth = 2; g.strokeStyle = INK; g.stroke();
   });
 }
+// 头像取景：女主角的马尾甩在脑后（左边），整个头缩小一点、往右挪，马尾露在圈里（标题页「换主角」按钮上和男主角一眼分得开）
+const AVATAR_FRAME = { none: { k: 1, dx: 0, dy: 0 }, playerF: { k: 0.8, dx: 5, dy: 2 } };
 export function avatar(npc, cx, cy, r) { gfx.draw(avatarTex(npc), cx, cy, { sx: r / 20, sy: r / 20 }); }
+// 星（结算页、选关页、开局卡）：亮的金黄、没亮的灰底虚边；锁（没解锁的关卡）
+const starTex = on => bake(`ico|star|${on ? 1 : 0}`, [-21, -21, 42, 42], g => {
+  g.beginPath();
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 8.4 : 19; g.lineTo(Math.cos(a) * r, Math.sin(a) * r + 1); }
+  g.closePath(); g.lineJoin = 'round';
+  g.fillStyle = on ? '#ffd166' : 'rgba(43,34,51,.12)'; g.fill();
+  g.lineWidth = 2.6; g.strokeStyle = on ? INK : 'rgba(43,34,51,.35)'; g.stroke();
+  if (on) { g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.ellipse(-5, -6, 3, 5, -0.6, 0, Math.PI * 2); g.fill(); }
+});
+export function starIcon(x, y, r, on, s = 1) { const k = (r / 19) * s; gfx.draw(starTex(on), x, y, { sx: k, sy: k }); }
+const lockTex = () => bake('ico|lock', [-14, -18, 28, 34], g => {
+  g.lineWidth = 2.6; g.strokeStyle = '#8a7f95'; g.beginPath(); g.arc(0, -4, 7, Math.PI, 0); g.lineTo(7, 2); g.moveTo(-7, 2); g.lineTo(-7, -4); g.stroke();
+  g.fillStyle = '#b3a8bd'; roundRect(g, -11, 1, 22, 15, 4); g.fill(); g.lineWidth = 2; g.strokeStyle = INK; g.stroke();
+  g.fillStyle = INK; g.fillRect(-1.2, 5, 2.4, 6);
+});
+export function lockIcon(x, y) { gfx.draw(lockTex(), x, y); }
 
 // ── HUD ───────────────────────────────────────────────
 export function drawHud(run, L, t, buttons) {
@@ -103,9 +147,10 @@ export function drawHud(run, L, t, buttons) {
   if (run.flags.energy) text('⚡能量', 66, y + 30, { size: 12, color: '#f7c948', lw: 3, align: 'left' });
 
   text(fmtClock(clockMin(run)), L.W / 2, y + 8, { size: 26, color: '#fff', lw: 5, id: 'hud-clock' });
-  const px = L.W / 2 - 56, pw = 112, k = clamp(run.x / COURSE.end, 0, 1);
+  // 进度条：按这一关的起终点算；路段刻度跳过小路段（楼梯间之类）
+  const lv = run.lv, span = lv.end - lv.x0, px = L.W / 2 - 56, pw = 112, k = clamp((run.x - lv.x0) / span, 0, 1);
   gfx.rect(px, y + 26, pw, 6, { fill: 'rgba(43,34,51,.45)', r: 3 });
-  for (const s of COURSE.stages.slice(1)) gfx.rect(px + pw * s.x0 / COURSE.end - 0.5, y + 25, 1.5, 8, { fill: 'rgba(255,255,255,.7)' });
+  for (const s of lv.stages.slice(1)) if (!s.minor) gfx.rect(px + pw * (s.x0 - lv.x0) / span - 0.5, y + 25, 1.5, 8, { fill: 'rgba(255,255,255,.7)' });
   if (k > 0.01) gfx.rect(px, y + 26, pw * k, 6, { fill: '#ffd166', r: 3 });
   gfx.draw(houseTex(), px + pw + 9, y + 29);
   text(run.stage.name, L.W / 2, y + 42, { size: 11, color: '#fff', lw: 3 });
@@ -113,12 +158,43 @@ export function drawHud(run, L, t, buttons) {
   for (let i = 0; i < RES.boxes; i++) lunchbox(L.W - 30 - i * 30, y + 8, i < run.boxes);
   text(String(run.score), L.W - 16, y + 30, { size: 13, color: '#fff', lw: 3, align: 'right', id: 'hud-score' });
   if (run.combo >= 3) text(`连击 ×${run.combo}`, L.W - 16, y + 46, { size: 12, color: '#ffd166', lw: 3, align: 'right', id: 'hud-combo' });
+  drawErrandNotes(run, L, t);
+  // 带薪摸鱼：右上角小标签（连击下面，不压灯牌：灯牌在 groundY − 300）
+  if (run.assist) { const ay = y + (run.combo >= 3 ? 56 : 40); card(L.W - 72, ay, 58, 20, 10, 'rgba(46,204,113,.92)', { lw: 1.6, shadow: 0 }); text('摸鱼中', L.W - 43, ay + 10, { size: 11, color: '#fff' }); }
+}
+
+// HUD 便签（钱数下面，高 22 的圆角卡）：① 家里交代的事（白底待办 / 绿底 ✓ 办好 / 灰底 过了最后一个能办的地方，挂了电话的角上红「未接」）；
+// ② 接了家里电话：「18:56 前到家」（预计到家晚于它就变灰）。快到能办的地方时便签跳一下
+const etaMemo = { run: null, x: 0, rem: 0 };
+function drawErrandNotes(run, L, t) {
+  let y = L.hudY + 44;
+  const note = (icon, label, state, extra) => {
+    const w = gfx.measure(label, { size: 12 }) + 40, bounce = extra.bounce ? -Math.abs(Math.sin((run.t - extra.bounce) * 12)) * 4 : 0;
+    const fill = state === 'done' ? '#d8f8e1' : state === 'gone' ? 'rgba(220,214,226,.92)' : '#ffffff';
+    card(12, y + bounce, w, 22, 11, fill, { lw: 1.8, shadow: 0 });
+    gfx.draw(iconTex(icon), 25, y + 11 + bounce, { sx: 0.75, sy: 0.75, alpha: state === 'gone' ? 0.5 : 1 });
+    text(label, 37, y + 11 + bounce, { size: 12, color: state === 'gone' ? '#8a7f95' : INK, align: 'left' });
+    if (state === 'done') text('✓', 12 + w - 9, y + 11 + bounce, { size: 12, color: '#1e8449' });
+    if (extra.missed) { card(6, y - 6 + bounce, 26, 13, 6, '#e74c3c', { lw: 1.2, shadow: 0 }); text('未接', 19, y + 0.5 + bounce, { size: 8, color: '#fff' }); }
+    y += 26;
+  };
+  const e = run.fam && run.fam.errand, d = run.story && run.story.errand;
+  if (e && d && e.state !== 'none') {
+    const near = run.fam.nearT != null && run.t - run.fam.nearT < 0.6 && e.state === 'todo' ? run.fam.nearT : null;
+    note(d.icon.shape, d.name, e.state === 'done' ? 'done' : errandLeft(run) ? 'todo' : 'gone', { missed: e.missed, bounce: near });
+  }
+  if (run.fam && run.fam.deadline != null) {
+    // 剩下路程的纯跑分钟数（积分到终点，全程关上万步）只在主角每跑 40px 时重算一次，每帧只加上当前时钟（只是画面上的灰不灰，不进逻辑）
+    if (etaMemo.run !== run || Math.abs(run.x - etaMemo.x) >= 40) { etaMemo.run = run; etaMemo.x = run.x; etaMemo.rem = etaMin(run, 0); }
+    const late = clockMin(run) + etaMemo.rem > run.fam.deadline;
+    note('clock', `${fmtClock(run.fam.deadline)} 前到家`, late ? 'gone' : 'todo', {});
+  }
 }
 
 // ── 读题气泡 ─────────────────────────────────────────
 export function drawChoice(run, L, vis, t, buttons) {
   const c = run.choice;
-  if (!c) return;
+  if (!choiceShown(c)) return;                     // 进了店：便利店面板就是反馈，「进店」卡不画
   const open = c.phase === 'open', age = c.age;
   const pop = ease.outBack(clamp(age / 0.18, 0, 1));
   // 气泡底边固定在跑道上方；矮屏时不压到 HUD
@@ -128,7 +204,7 @@ export function drawChoice(run, L, vis, t, buttons) {
   gfx.translate(L.W / 2, by + bh); gfx.scale(pop); gfx.translate(-L.W / 2, -(by + bh));
   if (c.kind === 'call') drawCallBubble(c, bx, by, bw, bh, t);
   else {
-    const npc = c.kind === 'npc' ? NPCS[c.npc] : c.kind === 'mom' ? MOM : null;
+    const npc = c.kind === 'npc' ? NPCS[c.npc] : c.kind === 'mom' ? memberOf(run.story, c.npc) || MOM : null;   // 家门口：这个家里的人（名字、身份、性格标签）
     const fill = res ? (res.good === true ? '#eafff1' : res.good === 'mid' ? '#fff7e0' : '#ffecec') : '#ffffff';
     card(bx, by, bw, bh, 16, fill, { lw: 2.6 });
     gfx.draw(tailTex(fill), clamp(vis.npcSX || L.W - 80, bx + 30, bx + bw - 30), by + bh);
@@ -145,8 +221,9 @@ export function drawChoice(run, L, vis, t, buttons) {
         tx2 -= w; card(tx2, by + 15, w, 18, 9, '#fff1d6', { lw: 1.4, shadow: 0 }); text(tr, tx2 + w / 2, by + 24, { size: 11, color: '#a0522d' }); tx2 -= 4;
       }
     } else {
-      gfx.circle(bx + 30, by + 30, 20, { fill: c.kind === 'ride' ? '#f7b731' : '#2e86de', stroke: INK, lw: 2 });
-      text(c.kind === 'ride' ? '外卖' : '24h', bx + 30, by + 31, { size: 12, color: '#fff' });
+      const ico = c.kind === 'ride' ? ['#f7b731', '外卖', 12] : c.kind === 'route' ? ['#2E6BFF', '梯', 16] : ['#2e86de', '24h', 12];   // 路线卡：蓝圆「梯」
+      gfx.circle(bx + 30, by + 30, 20, { fill: ico[0], stroke: INK, lw: 2 });
+      text(ico[1], bx + 30, by + 31, { size: ico[2], color: '#fff' });
       text(c.name, bx + 58, by + 24, { size: 17, color: INK, align: 'left' });
     }
     const line = res ? res.react || '' : c.line;
@@ -155,8 +232,8 @@ export function drawChoice(run, L, vis, t, buttons) {
     const lines = wrap(line, bw - 36, 19);
     const ly = by + (pre ? 70 : 64) - (lines.length - 1) * 11;
     lines.slice(0, 2).forEach((s, i) => text(s, bx + bw / 2, ly + i * 24, { size: 19, color: res ? (res.good === true ? '#1e8449' : res.good === 'mid' ? '#9a6b00' : '#c0392b') : INK }));
-    if (res && c.kind !== 'ride' && c.kind !== 'store') {
-      const mark = res.good === true ? (res.reconcile ? '和解！' : '放行') : res.good === 'mid' ? '勉强放行' : c.kind === 'mom' ? '挨骂了' : '被缠上了！';
+    if (res && c.kind !== 'ride' && c.kind !== 'store' && c.kind !== 'route') {
+      const mark = c.kind === 'mom' ? doorMark(run.story, res.good) : res.good === true ? (res.reconcile ? '和解！' : '放行') : res.good === 'mid' ? '勉强放行' : res.noChase ? '挨白眼了' : '被缠上了！';   // 门口：开饭！/ 还行 / 每家不同的答坏
       card(bx + bw - 86, by + bh - 30, 76, 22, 11, res.good === true ? '#2ecc71' : res.good === 'mid' ? '#f39c12' : '#e74c3c', { lw: 1.6, shadow: 0 });
       text(mark, bx + bw - 48, by + bh - 19, { size: 12, color: '#fff' });
     }
@@ -204,9 +281,11 @@ function drawCards(run, c, L, t, buttons, age) {
       if (opt.cost) text(`¥${opt.cost}`, x + w - 12, y + 20, { size: 13, color: run.money < opt.cost ? '#e74c3c' : '#16a085', align: 'right' });
       if (c.grudgeTag && opt.tag === c.grudgeTag) text('上次说过', x + w - 12, y + 20, { size: 11, color: '#e74c3c', align: 'right' });
     }
-    text(opt.text, x + w / 2, y + h / 2 + (opt.tag ? 6 : 0), { size: [...opt.text].length > 6 ? 19 : 22, color: INK, maxW: w - 16 });
+    text(opt.text, x + w / 2, y + h / 2 + (opt.tag ? 6 : opt.note ? -8 : 0), { size: [...say(opt.text)].length > 6 ? 19 : 22, color: INK, maxW: w - 16 });
+    if (opt.note) text(opt.note, x + w / 2, y + h / 2 + 14, { size: 11, color: '#8a7f95', weight: 400, maxW: w - 16 });   // 路线卡的小字：多跑一段 / 预计停 N 层
+    if (opt.route) gfx.draw(routeIcon(opt.route), x + w - 20, y + 20);
     text(i === 0 ? '◀ 左滑' : '右滑 ▶', x + w / 2, y + h - 14, { size: 11, color: '#b3a8bd', weight: 400 });
-    if (c.phase === 'result' && c.picked === i && c.res && c.kind !== 'call' && c.kind !== 'ride' && c.kind !== 'store') {
+    if (c.phase === 'result' && c.picked === i && c.res && c.kind !== 'call' && c.kind !== 'ride' && c.kind !== 'store' && c.kind !== 'route') {
       const good = c.res.good, col = good === true ? '#2ecc71' : good === 'mid' ? '#f39c12' : '#e74c3c';
       gfx.save(); gfx.translate(x + w - 24, y + h - 30); gfx.rotate(-0.2);
       gfx.circle(0, 0, 17, { stroke: col, lw: 3, fill: 'rgba(255,255,255,0)' });
@@ -219,23 +298,26 @@ function drawCards(run, c, L, t, buttons, age) {
 }
 
 // ── 便利店 ─────────────────────────────────────────
+export const shopTop = L => L.groundY - 250;          // 面板上沿（滑进来停住以后）：提示条放在它上面
 export function drawShop(run, L, t, buttons) {
   const s = run.shop;
   if (!s) return;
   const k = ease.outCubic(clamp(s.t / 0.2, 0, 1));
   gfx.rect(0, 0, L.W, L.H, { fill: '#1e1428', alpha: 0.55 * k });
-  const pw = L.W - 24, ph = 300, px = 12, py = L.groundY - 250 + (1 - k) * 40;
+  const pw = L.W - 24, ph = 300, px = 12, py = shopTop(L) + (1 - k) * 40;
   card(px, py, pw, ph, 18, '#fffaf0', { lw: 2.6 });
   gfx.rect(px, py, pw, 44, { fill: '#2e86de', r: 18 }); gfx.rect(px, py + 24, pw, 20, { fill: '#2e86de' });
   text('便利店 · 只能挑一样', px + 16, py + 23, { size: 17, color: '#fff', align: 'left' });
   text(`钱包 ¥${run.money}`, px + pw - 16, py + 23, { size: 15, color: '#ffd166', align: 'right' });
   const cw = (pw - 32 - 16) / 3;
-  STORE.items.forEach((it, i) => {
+  (s.items || STORE.items).forEach((it, i) => {         // 货架：这一局的（家庭剧本可以换第 3 格）
     const x = px + 16 + i * (cw + 8), y = py + 58, h = 168;
     const can = run.money >= it.price, picked = s.picked === i;
     gfx.save(); gfx.alpha(can ? 1 : 0.45);
-    card(x, y, cw, h, 14, picked ? '#d8f8e1' : '#ffffff', { lw: 2.2 });
-    gfx.draw(itemTex(it.id), x + cw / 2, y + 48);
+    card(x, y, cw, h, 14, picked ? '#d8f8e1' : it.fam ? '#ffe08a' : '#ffffff', { lw: 2.2 });
+    if (it.fam) gfx.draw(iconTex(ITEM_SHAPE[it.id] || 'box', 2.2), x + cw / 2, y + 44);
+    else gfx.draw(itemTex(it.id), x + cw / 2, y + 48);
+    if (it.fam) { gfx.circle(x + cw - 14, y + 14, 11, { fill: '#e74c3c', stroke: INK, lw: 1.6 }); text('家', x + cw - 14, y + 14, { size: 12, color: '#fff' }); }
     if (it.id === 'oden') for (let j = 0; j < 2; j++) { const q = (t + j / 2) % 1; gfx.circle(x + cw / 2 - 10 + j * 20, y + 18 - q * 14, 4 + q * 3, { fill: '#fff', alpha: (1 - q) * 0.7 }); }
     text(it.name, x + cw / 2, y + 98, { size: 16, color: INK, maxW: cw - 8 });
     text(`¥${it.price}`, x + cw / 2, y + 122, { size: 18, color: can ? '#e67e22' : '#999' });
@@ -259,19 +341,32 @@ export function drawHint(run, L, t) {
   if (!h || run.cutscene) return;
   const a = h.total > 100 ? 1 : clamp(h.t / 0.3, 0, 1) * clamp((h.total - h.t) / 0.15 + 0.2, 0, 1);
   const w = gfx.measure(h.text, { size: 15 }) + 36;
-  const y = run.choice ? Math.max(L.hudY + 20, L.groundY - 384) : L.groundY - 210;    // 读题时放到「+100」飘字上方
+  // 便利店里放到面板上沿外面（不压货架卡片，矮屏也是）；读题时放到「+100」飘字上方；电梯里教关门时放到轿厢上面（不压轿厢里的人和外卖小哥的台词）
+  const y = run.shop ? shopTop(L) - 42 : run.choice ? Math.max(L.hudY + 20, L.groundY - 384) : run.room ? Math.max(L.hudY + 70, L.groundY - 350) : L.groundY - 210;
   gfx.save(); gfx.alpha(a);
   card(L.W / 2 - w / 2, y, w, 34, 17, 'rgba(43,34,51,.86)', { stroke: '#ffd166', lw: 2, shadow: 0 });
   text(h.text, L.W / 2, y + 17, { size: 15, color: '#fff' });
   gfx.restore();
-  if (run.teach) gestureHand(L.W / 2 + 70, L.groundY - 70, run.teach.kind === 'jump' ? -1 : 1, t);
+  if (run.teach) {
+    const k = run.teach.kind;
+    if (k === 'lift') gestureHand(L.W / 2 + 26, L.cardsY + L.cardsH / 2 + 22, 'tap', t);       // 点关门键
+    else if (k === 'dash' || k === 'crossdash') gestureHand(L.W / 2 + 20, L.groundY - 70, 'right', t);
+    else gestureHand(L.W / 2 + 70, L.groundY - 70, k === 'jump' ? -1 : 1, t);
+  }
   if (run.choice && run.choice.hold) gestureHand(L.W / 2, L.groundY + 14, 0, t);       // 地面线和卡片之间的空当
 }
 // 手势示意：箭头 + 沿箭头滑动的指尖
 function gestureHand(x, y, dir, t) {
   const k = (t * 1.3) % 1;
   let fx, fy;
-  if (dir === 0) { gfx.draw(arrowTex(), x - 20, y, { rot: Math.PI, sx: 0.85 }); gfx.draw(arrowTex(), x + 20, y, { sx: 0.85 }); fx = x + Math.sin(t * 3) * 60; fy = y; }
+  if (dir === 'tap') {                                  // 点一下：指尖按下去再抬起来
+    const s = 1 - 0.25 * Math.sin(k * Math.PI);
+    gfx.circle(x, y, 22 * (0.6 + k * 0.6), { fill: 'rgba(255,255,255,0)', stroke: '#ffd166', lw: 3, alpha: 1 - k });
+    gfx.circle(x, y, 13 * s, { fill: '#ffd166', stroke: INK, lw: 3 });
+    return;
+  }
+  if (dir === 'right') { gfx.draw(arrowTex(), x - 30, y, { sx: 1.0 }); fx = x - 30 + 60 * ease.outCubic(k); fy = y; }
+  else if (dir === 0) { gfx.draw(arrowTex(), x - 20, y, { rot: Math.PI, sx: 0.85 }); gfx.draw(arrowTex(), x + 20, y, { sx: 0.85 }); fx = x + Math.sin(t * 3) * 60; fy = y; }
   else { gfx.draw(arrowTex(), x, y - dir * 30, { rot: dir * Math.PI / 2, sx: 1.0 }); fx = x; fy = y - dir * 30 + dir * 60 * ease.outCubic(k); }
   gfx.circle(fx, fy, 13, { fill: '#ffd166', stroke: INK, lw: 3, alpha: dir === 0 ? 1 : 1 - k * 0.5 });
 }
@@ -315,46 +410,60 @@ export function drawCutscene(run, L, t) {
 }
 
 // ── 到家：开门 → 饭桌 ──────────────────────────────
-// 背景（墙、灯、光、地板、凳子、桌子、碗）整体烘焙一张；人物和热气每帧动
-export function drawDinner(L, result, t) {
-  const meal = result.meal;
-  const S = 2.2, fy = L.H * 0.76, ty = fy - 64, stool = fy - 38, bx = 178;
-  const bg = bake(`dinner|${L.H}`, [0, 0, L.W, L.H], g => {
-    const gr = g.createLinearGradient(0, 0, 0, L.H); gr.addColorStop(0, '#ffe2b8'); gr.addColorStop(1, '#ffb88c');
-    g.fillStyle = gr; g.fillRect(0, 0, L.W, L.H);
-    g.strokeStyle = INK; g.lineWidth = 2; g.beginPath(); g.moveTo(L.W / 2, 0); g.lineTo(L.W / 2, L.H * 0.2); g.stroke();
-    g.fillStyle = '#fff3c4'; g.beginPath(); g.moveTo(L.W / 2 - 40, L.H * 0.24); g.lineTo(L.W / 2 - 18, L.H * 0.2); g.lineTo(L.W / 2 + 18, L.H * 0.2); g.lineTo(L.W / 2 + 40, L.H * 0.24); g.closePath(); g.fill(); g.stroke();
-    g.fillStyle = 'rgba(255,240,180,.35)'; g.beginPath(); g.moveTo(L.W / 2 - 40, L.H * 0.24); g.lineTo(L.W / 2 - 150, L.H * 0.7); g.lineTo(L.W / 2 + 150, L.H * 0.7); g.lineTo(L.W / 2 + 40, L.H * 0.24); g.fill();
-    g.fillStyle = '#c08552'; g.fillRect(0, fy, L.W, L.H - fy);
-    g.fillStyle = '#8b5a2b'; g.fillRect(54, stool, 70, 10); g.fillRect(62, stool + 10, 8, fy - stool - 10); g.fillRect(108, stool + 10, 8, fy - stool - 10);
-  }, { res: Math.min(2, BAKE_RES) });
+// 背景（墙、灯、光、地板、凳子）和前景（桌子、没有美术图时的碗）各烘焙一张；人物和热气每帧动。
+// 两张都只留当前这一顿的（换家 / 换菜时释放上一张，不常驻显存）；到家演出白屏那几帧先烘焙好、传进显存（prepareDinner），进饭桌那一帧不卡
+const frontSlot = makeLru(1, t => gfx.release(t));
+function dinnerTex(L, result) {
+  const meal = result.meal, fam = (result.family && result.family.id) || 'parents', hx = dinnerHeroDx(result);
+  const fy = L.H * 0.76, ty = fy - 64, stool = fy - 38, bx = 178 + hx;   // hx：有客人时一桌人往右让（主角、凳子、碗一起挪）
+  const bg = dinnerBg(L, fam, fy, ty, stool, hx);          // 每个家一张：墙色、灯、电视 / 冰箱 / 福字……（js/render/homes.js）
   const mArt = mealArt(meal);
-  const front = bake(`dinnerFront|${L.H}|${mArt ? 'art' : meal.name}`, [114, ty - 64, 180, fy - ty + 68], g => {
-    g.fillStyle = '#a0522d'; roundRect(g, 120, ty, L.W - 210, 16, 5); g.fill(); g.lineWidth = 2.6; g.strokeStyle = INK; g.stroke();
-    g.fillStyle = '#8b4513'; g.fillRect(132, ty + 16, 10, fy - ty - 16); g.fillRect(L.W - 112, ty + 16, 10, fy - ty - 16);
+  const fk = `dinnerFront|${fam}|${L.H}|${mArt ? 'art' : meal.name}|${hx}`;
+  const front = frontSlot.get(fk, () => bakeTemp(fk, [100, ty - 64, 210, fy - ty + 68], g => {
+    dinnerTable(g, L, fam, ty, fy);
     const by = ty;
     if (mArt) return;      // 有美术图：碗单独画
     g.fillStyle = '#fff'; g.beginPath(); g.arc(bx, by - 22, 38, 0, Math.PI); g.closePath(); g.fill(); g.lineWidth = 2.6; g.strokeStyle = INK; g.stroke();
     g.fillStyle = meal.color || '#f2c14e'; g.beginPath(); g.ellipse(bx, by - 22, 36, 12, 0, 0, Math.PI * 2); g.fill(); g.stroke();
     g.fillStyle = meal.side || '#fff'; for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(bx - 22 + i * 9, by - 26 + (i % 2) * 5, 5.5, 0, Math.PI * 2); g.fill(); }
     g.fillStyle = '#5b9bd5'; g.fillRect(bx - 38, by - 16, 76, 3);
-  });
+  }));
+  return { bg, front, mArt, hx, fy, ty, stool, bx };
+}
+// 饭桌上的三行字：到家时刻、今晚吃什么、饭桌一句（家庭剧本）
+function dinnerLines(L, result) {
+  const out = [[`${result.arrivalText} 到家`, L.H * 0.3, { size: 34, color: '#fff', lw: 7 }], [`今晚吃：${result.meal.name}`, L.H * 0.3 + 44, { size: 20, color: '#fff', lw: 5 }]];
+  const line = result.family && result.family.dinner;
+  if (line) out.push([line, L.H * 0.3 + 74, { size: 15, color: '#fff', lw: 4, maxW: L.W - 40 }]);
+  return out;
+}
+// 到家演出还在开门、白屏时调（play.js），一帧只做一件：step 0 烘焙背景并传进显存，step 1 前景和菜的图，step 2–4 三行大字各一行（WebGL 后端现做大字也要几毫秒）
+export const DINNER_PREP_STEPS = 5;
+export function prepareDinner(L, result, step) {
+  if (step >= 2) { const l = dinnerLines(L, result)[step - 2]; if (l) gfx.warm(l[0], l[2]); return; }
+  const d = dinnerTex(L, result), tex = step === 0 ? d.bg : d.front;
+  gfx.preload(tex.src);
+  if (step === 1 && d.mArt) gfx.preload(d.mArt.img);
+}
+export function drawDinner(L, result, t) {
+  const { bg, front, mArt, hx, fy, ty, stool, bx } = dinnerTex(L, result), S = 2.2;
   gfx.draw(bg, 0, 0);
-  if (meal.tier >= 2) person(gfx, L.W - 62, fy, lookOf('mom'), { ...idlePose(t), shR: 40, elR: 60 }, { flip: -1, scale: S });
+  drawDinnerPeople(L, result, t, fy, ty, stool, S, 'back');      // 桌子后面坐着的（爸爸）、站在主角身后的客人（来住的奶奶）
+  drawDinnerPeople(L, result, t, fy, ty, stool, S, 'front');     // 右边站着的、高脚椅上的朵朵、椅子上的橘子
   const chew = Math.sin(t * 14) > 0;
-  person(gfx, 92, stool + 25 * S, dinnerLook(chew), { ...POSE_BASE, head: chew ? 12 : 2, hipR: 88, knR: 88, hipL: 82, knL: 92, shR: 85, elR: 70, shL: 70, elL: 85, lean: 12 }, { scale: S });
+  person(gfx, 92 + hx, stool + 25 * S, dinnerLook(chew), { ...POSE_BASE, head: chew ? 12 : 2, hipR: 88, knR: 88, hipL: 82, knL: 92, shR: 85, elR: 70, shL: 70, elL: 85, lean: 12 }, { scale: S });
   gfx.draw(front, 0, 0);
   if (mArt) gfx.draw(fromImage(`meal|${mArt.src}`, mArt.img, mArt.w, mArt.h, { ox: mArt.w / 2, oy: mArt.h }), bx, ty + 4, { sx: 0.95, sy: 0.95 });
+  drawDinnerTableTop(L, result, t, ty);                          // 笔记本电脑、视频通话的手机（立在碗边上：画在碗之后，视频头像不被碗沿挡住）
   const steam = bake('steam', [-6, -24, 12, 26], g => { g.strokeStyle = '#fff'; g.lineWidth = 3; g.lineCap = 'round'; g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(10, -10, 0, -22); g.stroke(); });
   for (let i = 0; i < 3; i++) { const k = (t * 0.7 + i / 3) % 1; gfx.draw(steam, bx - 16 + i * 16, ty - 40 - k * 44, { alpha: (1 - k) * 0.8 }); }
-  text(`${result.arrivalText} 到家`, L.W / 2, L.H * 0.3, { size: 34, color: '#fff', lw: 7 });
-  text(`今晚吃：${meal.name}`, L.W / 2, L.H * 0.3 + 44, { size: 20, color: '#fff', lw: 5 });
+  for (const [s, y, o] of dinnerLines(L, result)) text(s, L.W / 2, y, o);
 }
 const dinnerLooks = {};
 function dinnerLook(chew) {
-  const k = chew ? 'open' : 'smile';
-  if (!dinnerLooks[k]) dinnerLooks[k] = { ...PLAYER, eyes: 'happy', mouth: k, id: `player:dinner:${k}` };
-  dinnerLooks[k].art = PLAYER.art;
+  const H = hero(), k = `${H.id}|${chew ? 'open' : 'smile'}`;
+  if (!dinnerLooks[k]) dinnerLooks[k] = { ...H, eyes: 'happy', mouth: chew ? 'open' : 'smile', id: `${H.id}:dinner:${chew ? 'open' : 'smile'}` };
+  dinnerLooks[k].art = H.art;
   return dinnerLooks[k];
 }
 
@@ -363,7 +472,7 @@ export function drawPause(L, settings, buttons) {
   gfx.rect(0, 0, L.W, L.H, { fill: 'rgba(30,20,40,.7)' });
   const w = 260, h = 300, x = (L.W - w) / 2, y = (L.H - h) / 2;
   card(x, y, w, h, 20, '#fffaf0', { lw: 2.6 });
-  text('摸鱼中……', L.W / 2, y + 36, { size: 22, color: INK });
+  text('歇口气……', L.W / 2, y + 36, { size: 22, color: INK });   // 不叫「摸鱼」：和关卡里的带薪摸鱼（右上角「摸鱼中」标签）分开
   const btn = (id, label, by, fill) => { card(x + 30, by, w - 60, 44, 22, fill, { lw: 2.4 }); text(label, L.W / 2, by + 22, { size: 17, color: INK }); buttons.push({ id, x: x + 30, y: by, w: w - 60, h: 44 }); };
   btn('resume', '继续跑', y + 70, '#ffd166');
   btn('restart', '重新下班', y + 124, '#ffffff');
@@ -377,7 +486,7 @@ export function drawPause(L, settings, buttons) {
 export function warmQueue(q, L) {
   const out = [];
   if (!q) return out;
-  const npc = NPCS[q.npc] || (q.npc === 'mom' ? MOM : null);
+  const npc = NPCS[q.npc] || (q.mom ? MEMBERS[q.npc] : null);
   const bw = L.W - 32;
   const push = (str, o) => { if (str) out.push([str, o]); };
   if (npc) {
@@ -387,11 +496,12 @@ export function warmQueue(q, L) {
   if (q.pre) push(q.pre, { size: 12, color: '#8a7f95', weight: 400 });
   for (const s of wrap(q.line, bw - 36, 19)) push(s, { size: 19, color: INK });
   for (const opt of q.opts || []) {
-    push(opt.text, { size: [...opt.text].length > 6 ? 19 : 22, color: INK });
+    push(opt.text, { size: [...say(opt.text)].length > 6 ? 19 : 22, color: INK });
     if (opt.tag) push(opt.tag, { size: 12, color: '#fff' });
     if (opt.react) for (const s of wrap(opt.react, bw - 36, 19)) for (const col of ['#1e8449', '#9a6b00', '#c0392b']) push(s, { size: 19, color: col });
   }
   for (const m of ['放行', '勉强放行', '被缠上了！', '和解！']) push(m, { size: 12, color: '#fff' });
+  if (q.mom) for (const m of [DOOR_MARKS.good, DOOR_MARKS.mid, ...Object.values(FAMILIES).map(f => f.marks.bad)]) push(m, { size: 12, color: '#fff' });
   return out;
 }
 

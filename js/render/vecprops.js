@@ -3,7 +3,7 @@
 import { roundRect, INK, text } from './draw.js';
 import { OBSTACLES } from '../data/obstacles.js';
 import { STORE } from '../data/events.js';
-import { puddle, curb, boxes, bike, ebike, leash, manhole, warnSign, wetSign, officeChair, coin } from './props.js';
+import { puddle, curb, boxes, bike, ebike, leash, leashLady, manhole, warnSign, wetSign, officeChair, coin } from './props.js';
 import { drawPerson, idlePose } from './rig.js';
 
 const st = (g, w = 2.2) => { g.lineWidth = w; g.strokeStyle = INK; g.stroke(); };
@@ -13,8 +13,8 @@ export function obstacleBox(type) {
   const T = OBSTACLES[type], w = T.w;
   const box = (L, top, R = L, below = 12) => [-L, -top, w + L + R, top + below];
   switch (type) {
-    case 'leash': return box(36, 74, 30);
-    case 'manhole': return box(50, 68, 36);
+    case 'leash': return box(8, 44, 30);
+    case 'manhole': return box(6, 16, 36);
     case 'ebikeHall': return box(14, 70, 26);
     case 'bike': return box(20, 54);
     case 'scooter': return box(10, 50);
@@ -36,11 +36,12 @@ export function drawObstacleVec(g, type) {
     case 'chair': officeChair(g, x, 0, 0); break;
     case 'wetsign': wetSign(g, x, 0); break;
     case 'puddle': puddle(g, x, 0, T.w, 0); break;
-    case 'step': curb(g, x, 0, T.w, T.ground); break;
-    case 'bike': bike(g, x, 0, T.w, 0, null, -1); break;
+    // 下面几样的颜色跟着美术图的换色走：台阶黄踏步边、单车蓝车架、遛狗绳荧光绿、楼道电动车黄车身
+    case 'step': curb(g, x, 0, T.w, T.ground, '#FFD60A'); break;
+    case 'bike': bike(g, x, 0, T.w, 0, null, -1, '#1FA2FF'); break;
     case 'leash': leash(g, x, 0, T.w, 0); break;
-    case 'manhole': warnSign(g, x - 40, 0); manhole(g, x, 0, T.w, 0); break;
-    case 'ebikeHall': ebike(g, x - 8, 0, 80, 0, false); break;
+    case 'manhole': manhole(g, x, 0, T.w, 0); break;              // 前面的施工牌不会撞：单独画、不加外圈（warnSignPropVec）
+    case 'ebikeHall': ebike(g, x - 8, 0, 80, 0, false, '#FFD60A'); break;
     case 'cone': cone(g, x, T.w, T.ground); break;
     case 'bin': bin(g, x, T.w, T.ground); break;
     case 'trike': trike(g, x, T.w, T.ground); break;
@@ -50,6 +51,9 @@ export function drawObstacleVec(g, type) {
     case 'scaffold': scaffold(g, x, T); break;
     case 'sheet': sheet(g, x, T, 0); break;
     case 'gate': hanging(g, x, T, '#9aa3b5', '', '#fff'); break;
+    case 'cardoor': carDoor(g, x, T.w, T.ground); break;
+    case 'splash': puddle(g, x, 0, T.w, 0); break;              // 水坑本身照画，水墙另外叠（splashVec）
+    case 'mop': mopBucket(g, x, T.w, T.ground); break;
     default: g.fillStyle = '#f0f'; g.fillRect(x, -(T.ground || 20), T.w, T.ground || 20);
   }
 }
@@ -82,9 +86,7 @@ function hanging(g, x, T, color, label, ink) {
   g.fillStyle = color; roundRect(g, x, -top, T.w, top - b, 4); g.fill(); st(g);
   g.fillStyle = 'rgba(0,0,0,.12)'; g.fillRect(x + 2, -b - 8, T.w - 4, 6);
   if (label) text(g, label, x + T.w / 2, -(top + b) / 2, { size: 13, color: ink, maxW: T.w - 8 });
-  g.save(); roundRect(g, x, -b - 7, T.w, 7, 2); g.clip();
-  for (let i = 0; i < T.w / 8 + 2; i++) { g.fillStyle = i % 2 ? '#f7b731' : INK; g.fillRect(x + i * 8, -b - 7, 8, 7); }
-  g.restore();
+  // 只能滑的障碍底边的蓝白斜纹在 world.js 里统一画（有没有美术图都一样）
 }
 function scaffold(g, x, T) {
   const [b, top] = T.overhead;
@@ -103,6 +105,79 @@ function sheet(g, x, T, t) {
   for (let i = 10; i >= 0; i--) g.lineTo(x + T.w * i / 10, -b + Math.sin(t * 3 + i) * 2.5);
   g.closePath(); g.fill(); st(g);
   g.fillStyle = '#fff'; for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(x + 12 + i * 16, -top + 20 + (i % 2) * 22, 4, 0, Math.PI * 2); g.fill(); }
+}
+// 楼梯间的拖把水桶（兜底）：亮黄圆角桶 + 灰色挤水器 + 斜靠的拖把杆（整个剪影不高出判定框）
+function mopBucket(g, x, w, h) {
+  g.strokeStyle = '#E8D7B0'; g.lineWidth = 3; g.beginPath(); g.moveTo(x + 10, -h * 0.55); g.lineTo(x + 4, -h + 1); g.stroke();
+  g.fillStyle = '#8E8AA6'; roundRect(g, x + w * 0.52, -h * 0.82, w * 0.36, h * 0.34, 3); g.fill(); st(g, 1.6);
+  g.fillStyle = '#FFD60A'; roundRect(g, x + 2, -h * 0.58, w - 4, h * 0.5, 4); g.fill(); st(g);
+  g.fillStyle = '#E0B400'; g.fillRect(x + w - 10, -h * 0.5, 5, h * 0.36);
+  g.fillStyle = INK; for (const cx of [x + 8, x + w - 8]) { g.beginPath(); g.arc(cx, -4, 3.5, 0, Math.PI * 2); g.fill(); }
+}
+// 违停车的后门（兜底）：深紫灰门板 + 淡蓝车窗 + 左缘一条车漆外沿和两个铰链，铰链在左、自由边在右
+function carDoor(g, x, w, h) {
+  const win = h * 0.38;
+  g.fillStyle = '#8FA3BF'; roundRect(g, x, -h, 6, h, 2); g.fill(); st(g, 1.6);
+  g.fillStyle = '#4B4458'; g.beginPath(); g.moveTo(x + 4, -h); g.lineTo(x + w - 8, -h + 2); g.lineTo(x + w, -h + win); g.lineTo(x + w - 1, -3); g.quadraticCurveTo(x + w - 1, 0, x + w - 4, 0); g.lineTo(x + 4, 0); g.closePath(); g.fill(); st(g);
+  g.fillStyle = '#C9CCF2'; g.beginPath(); g.moveTo(x + 7, -h + 4); g.lineTo(x + w - 9, -h + 5); g.lineTo(x + w - 4, -h + win - 2); g.lineTo(x + 7, -h + win - 2); g.closePath(); g.fill(); st(g, 1.4);
+  g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(x + 11, -h + win - 5); g.lineTo(x + 17, -h + 7); g.stroke();
+  g.fillStyle = '#6B6478'; roundRect(g, x + 8, -h * 0.42, w - 13, 5, 2); g.fill(); st(g, 1.2);
+  g.fillStyle = '#E8283C'; g.fillRect(x + w - 9, -7, 5, 3);
+  g.fillStyle = INK; for (const yy of [-h * 0.72, -h * 0.3]) g.fillRect(x - 1.5, yy, 4, 5);
+}
+// 溅水水墙：k = 0.4 / 0.8 / 1.0 三帧（升起 → 满 → 落），烘焙时加米白外圈（会撞的）。原点 = 水坑左缘、地面
+export function splashVec(g, k) {
+  g.fillStyle = '#5BC0EB'; g.beginPath(); g.ellipse(28, -2, 30, 4, 0, 0, Math.PI * 2); g.fill(); st(g, 1.4);
+  const xs = [4, 13, 22, 32, 42, 51], hs = [16, 24, 30, 30, 26, 16];
+  for (let i = 0; i < 6; i++) {
+    const cx = xs[i], hh = hs[i] * k, lean = (i - 2.5) * 0.9;
+    g.beginPath(); g.moveTo(cx - 5, -1); g.quadraticCurveTo(cx - 4 + lean, -hh * 0.6, cx + lean * 1.6, -hh); g.quadraticCurveTo(cx + 4 + lean, -hh * 0.6, cx + 5, -1); g.closePath();
+    g.globalAlpha = 0.9; g.fillStyle = '#7FD4FF'; g.fill(); g.globalAlpha = 1;
+    g.lineWidth = 1.8; g.strokeStyle = INK; g.stroke();
+    g.strokeStyle = '#E8FAFF'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx + lean * 0.4, -3); g.lineTo(cx + lean * 1.2, -hh * 0.75); g.stroke();
+  }
+  const drops = [[8, -22, 2.4], [18, -30, 2], [27, -34, 3], [37, -31, 2.2], [47, -26, 2.6], [55, -18, 2]];
+  for (const [dx, dy, r] of drops) { const y = -2 + (dy + 2) * Math.min(1, k + 0.15); g.fillStyle = '#E8FAFF'; g.beginPath(); g.arc(dx, Math.max(-34, y), r, 0, Math.PI * 2); g.fill(); g.lineWidth = 1.2; g.strokeStyle = INK; g.stroke(); }
+}
+export const SPLASH_BOX = [-6, -40, 70, 46];
+// 马路上的车（兜底）：圆角车身 + 车厢 + 车窗 + 两个轮子，朝右；原点在左下角（轮子底）
+export const CAR_VEC = {
+  sedan: { w: 106, h: 60, body: '#8FA3BF', low: '#7A8DAA' },
+  taxi: { w: 115, h: 66, body: '#F5C84C', low: '#2F6F68', sign: true },
+  suv: { w: 121, h: 70, body: '#EDEAF0', low: '#C9C3D6' },
+  van: { w: 107, h: 78, body: '#7FC8B0', low: '#6AB39B', box: true },
+  parked: { w: 106, h: 60, body: '#9BA3B4', low: '#878FA2' },
+};
+export function carVec(g, id) {
+  const c = CAR_VEC[id], w = c.w, h = c.h, r = h * 0.17;
+  const top = c.sign ? -h + 6 : -h;
+  if (c.sign) { g.fillStyle = '#fff'; roundRect(g, w * 0.42, -h, w * 0.16, 7, 2); g.fill(); st(g, 1.4); }
+  g.fillStyle = c.body;
+  if (c.box) roundRect(g, 2, top, w - 6, h - r, 10); else { roundRect(g, w * 0.16, top, w * 0.6, h * 0.42, 12); g.fill(); st(g); roundRect(g, 1, -h * 0.62, w - 2, h * 0.62 - r * 0.6, 12); }
+  g.fill(); st(g);
+  g.fillStyle = c.low; g.fillRect(4, -h * 0.34, w - 8, h * 0.18);
+  g.fillStyle = '#C9CCF2';
+  if (c.box) { roundRect(g, w * 0.72, top + 8, w * 0.2, h * 0.3, 4); g.fill(); st(g, 1.4); g.fillStyle = '#F6EBD2'; roundRect(g, w * 0.36, top + 8, w * 0.22, h * 0.6, 4); g.fill(); st(g, 1.4); }
+  else for (const [a, b] of [[0.22, 0.44], [0.47, 0.7]]) { roundRect(g, w * a, top + 6, w * (b - a), h * 0.27, 5); g.fill(); st(g, 1.4); }
+  for (const wx of [w * 0.22, w * 0.78]) { g.fillStyle = INK; g.beginPath(); g.arc(wx, -r, r, 0, Math.PI * 2); g.fill(); g.fillStyle = '#F6EBD2'; g.beginPath(); g.arc(wx, -r, r * 0.45, 0, Math.PI * 2); g.fill(); }
+  g.fillStyle = '#FFF1C2'; g.beginPath(); g.arc(w - 4, -h * 0.47, 4, 0, Math.PI * 2); g.fill(); st(g, 1.2);
+  g.fillStyle = '#E8283C'; roundRect(g, 0, -h * 0.55, 4, 9, 2); g.fill();
+}
+// 冲刺：鞋底提示环（30×8 椭圆环 + 右边一个小 ▶），原点在脚底中点。under：衬底色（青环衬白、灰环衬深紫：公司浅紫地面上灰环也看得见）
+export function dashRingVec(g, color, under = '#fff') {
+  g.beginPath(); g.ellipse(0, 0, 16, 4.5, 0, 0, Math.PI * 2);
+  g.globalAlpha = 0.22; g.fillStyle = color; g.fill(); g.globalAlpha = 1;
+  g.strokeStyle = under; g.lineWidth = 4.8; g.stroke();
+  g.strokeStyle = color; g.lineWidth = 2.6; g.stroke();
+  g.fillStyle = color; g.beginPath(); g.moveTo(19, -3.5); g.lineTo(26, 0); g.lineTo(19, 3.5); g.closePath(); g.fill();
+  g.lineWidth = 1.2; g.strokeStyle = under; g.stroke();
+}
+// ▶▶ 地面标记：白色圆角底板 34×12 + 两个青色人字箭头。原点在底板中心
+export function dashMarkVec(g, shift = 0) {
+  g.globalAlpha = 0.92; g.fillStyle = '#fff'; roundRect(g, -17, -6, 34, 12, 4); g.fill(); g.globalAlpha = 1;
+  g.lineWidth = 1.2; g.strokeStyle = INK; g.stroke();
+  g.strokeStyle = '#00B8D9'; g.lineWidth = 2.6; g.lineCap = 'round'; g.lineJoin = 'round';
+  for (const cx of [-4.5 + shift, 4.5 + shift]) { g.beginPath(); g.moveTo(cx - 3.5, -4); g.lineTo(cx + 3.5, 0); g.lineTo(cx - 3.5, 4); g.stroke(); }
 }
 export function bunVec(g) {
   g.fillStyle = 'rgba(255,240,180,.5)'; g.beginPath(); g.arc(0, 0, 16, 0, Math.PI * 2); g.fill();
@@ -147,8 +222,14 @@ export function doorLeafVec(g) {
   g.fillStyle = '#a1887f'; g.fillRect(0, 0, 62, 126); g.strokeStyle = INK; g.lineWidth = 2; g.strokeRect(0, 0, 62, 126);
   g.fillStyle = '#f7c948'; g.beginPath(); g.arc(50, 66, 4, 0, Math.PI * 2); g.fill();
 }
-export function warnArrowVec(g, color) {
-  g.fillStyle = color; g.beginPath(); g.moveTo(26, 0); g.lineTo(0, -16); g.lineTo(0, 16); g.closePath(); g.fill(); st(g, 2);
-  text(g, '!', 9, 1, { size: 16, color: '#fff' });
+// 不会撞的陪衬：遛狗的大妈、井盖前的施工牌（没外圈）。原点 = 所属障碍的 x（施工牌画在 x − 40）
+export const LEASH_LADY_BOX = [-44, -84, 50, 88], WARN_SIGN_BOX = [-8, -66, 36, 70];
+export const leashLadyVec = g => leashLady(g, 0, 0);
+export const warnSignPropVec = g => warnSign(g, 0, 0);
+// 右缘预警牌：白底圆角方牌 + 红「!」，左边一个指向左的小三角（提示「从右边冲过来」）。原点在牌子中心
+export function warnSignVec(g) {
+  g.fillStyle = '#FFFFFF'; g.beginPath(); g.moveTo(-14, -7); g.lineTo(-22, 0); g.lineTo(-14, 7); g.closePath(); g.fill(); st(g, 2.2);
+  g.fillStyle = '#FFFFFF'; roundRect(g, -14, -14, 28, 28, 6); g.fill(); st(g, 2.2);
+  text(g, '!', 0, 1, { size: 20, color: '#E8283C' });
 }
 export { ebike };

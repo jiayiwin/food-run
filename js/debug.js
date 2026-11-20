@@ -5,6 +5,9 @@ import { gfx } from './gfx/gfx.js';
 const on = { hud: false, alerts: false };
 let shown = 0;
 
+// 开发版 / 体验版（或 ?debug=1）：结算页显示埋点等调试信息
+export const isDev = () => on.hud;
+
 export function installDiagnostics(query = {}) {
   const dev = envVersion() === 'develop' || envVersion() === 'trial';
   on.hud = dev || query.debug === '1';

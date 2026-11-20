@@ -1,6 +1,8 @@
 // 微信环境模拟：每个文件单独转成 CommonJS（和开发者工具一样），在没有 DOM 的沙箱里启动游戏，用机器人跑完整一局。
 // 沙箱里拿不到 WebGL，所以走 Canvas 2D 后端；用来抓模块加载顺序、DOM 依赖、美术文件缺失、运行时报错。
 //   node tools/wxsim.mjs
+//   node tools/wxsim.mjs --query "scene=play&level=full&seed=3&bot=2"   换一组启动参数（缺省就是这一组，不带 level 即全程关）
+//   node tools/wxsim.mjs --query "scene=levels"                        不是 play 的场景（选关页、标题页）：渲染 300 帧，不报错、不缺图就算过
 import { transformSync } from 'esbuild';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname, relative } from 'node:path';
@@ -8,6 +10,8 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const qi = process.argv.indexOf('--query');
+const QUERY = Object.fromEntries(new URLSearchParams(qi > 0 && process.argv[qi + 1] ? process.argv[qi + 1] : 'scene=play&seed=3&bot=2'));
 const errors = [], missing = [];
 const ctx2d = new Proxy({}, {
   get(t, k) {
@@ -29,7 +33,7 @@ let clock = 0, rafCb = null;
 const wx = new Proxy({
   getSystemInfoSync: () => ({ windowWidth: 390, windowHeight: 844, pixelRatio: 3, platform: 'ios', safeArea: { top: 47, bottom: 810 } }),
   createCanvas: mkCanvas, createImage: mkImage, getStorageSync: () => '', setStorageSync() {},
-  getLaunchOptionsSync: () => ({ query: { scene: 'play', seed: '3', bot: '2' } }),
+  getLaunchOptionsSync: () => ({ query: { ...QUERY } }),
   createInnerAudioContext: () => ({ play() {}, stop() {}, destroy() {}, onEnded() {} }),
 }, { get: (t, k) => (k in t ? t[k] : typeof k === 'string' && /^(on|off|show|vibrate)/.test(k) ? () => {} : undefined) });
 const sandbox = {
@@ -54,11 +58,13 @@ const step = () => { clock += 1000 / 60; const f = rafCb; rafCb = null; if (f) f
 load(resolve(ROOT, 'game.js'));
 await new Promise(r => setTimeout(r, 200));                 // 等美术图「加载」完
 let frames = 0;
-while (frames < 30000 && sandbox.__game.name === 'play') { step(); frames++; }
+const playing = sandbox.__game.name === 'play', first = sandbox.__game.name;
+if (playing) while (frames < 30000 && sandbox.__game.name === 'play') { step(); frames++; }
+else for (; frames < 300; frames++) step();
 for (let i = 0; i < 120; i++) step();                       // 战报页也渲染一会儿
 
-const ok = sandbox.__game.name === 'result' && !errors.length && !missing.length;
-console.log(`模块 ${cache.size} 个 · 跑了 ${frames} 帧 · 结束场景 ${sandbox.__game.name} · 报错 ${errors.length} · 缺图 ${missing.length}`);
+const ok = (playing ? sandbox.__game.name === 'result' : sandbox.__game.name === first) && !errors.length && !missing.length;
+console.log(`参数 ${new URLSearchParams(QUERY)} · 模块 ${cache.size} 个 · 跑了 ${frames} 帧 · 结束场景 ${sandbox.__game.name} · 报错 ${errors.length} · 缺图 ${missing.length}`);
 for (const e of errors.slice(0, 5)) console.log('报错：', e.slice(0, 500));
 for (const m of missing.slice(0, 10)) console.log('缺图：', relative(ROOT, resolve(ROOT, m)));
 process.exit(ok ? 0 : 1);

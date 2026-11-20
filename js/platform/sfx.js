@@ -53,6 +53,15 @@ export const sfx = {
   land(heavy = false) { noise(0.06, { gain: 0.18, hp: 120, lp: 900 }); if (heavy) tone(110, 0.14, { type: 'triangle', gain: 0.26, slide: 55 }); },
   slide() { noise(0.28, { gain: 0.16, hp: 900, lp: 5000 }); },
   whoosh() { noise(0.35, { gain: 0.14, hp: 600, lp: 3000 }); },
+  dash() { noise(0.28, { gain: 0.16, hp: 900, lp: 5000 }); tone(600, 0.22, { type: 'triangle', gain: 0.14, slide: 1400 }); },   // 冲刺：呼一声 + 上扬
+  splash() { noise(0.45, { gain: 0.22, hp: 300, lp: 2600 }); tone(240, 0.2, { type: 'sine', gain: 0.1, slide: 120, when: 0.05 }); },   // 车压水坑
+  carBy() { noise(0.5, { gain: 0.1, hp: 200, lp: 1400 }); },   // 路口横穿车开过去
+  // 过街提示音：一下短促的「嘀」，红灯低、绿灯高；间隔由场景按离到线 / 变绿还有多久调（越到最后越急）
+  crossBeep(red = false) { tone(red ? 700 : 1040, 0.045, { type: 'square', gain: 0.07 }); },
+  crossStop() { tone(560, 0.14, { type: 'triangle', gain: 0.16, slide: 360 }); },
+  crossGo() { tone(784, 0.08, { type: 'triangle', gain: 0.16 }); tone(1175, 0.12, { type: 'triangle', gain: 0.14, when: 0.07 }); },
+  ding() { tone(1568, 0.5, { type: 'sine', gain: 0.16 }); tone(1245, 0.6, { type: 'sine', gain: 0.12, when: 0.18 }); },   // 电梯到层
+  doorClose() { noise(0.22, { gain: 0.16, hp: 200, lp: 1600 }); tone(180, 0.12, { type: 'triangle', gain: 0.2, when: 0.16, slide: 120 }); },   // 电梯门合上
   pop() { tone(660, 0.07, { type: 'triangle', gain: 0.22 }); tone(990, 0.09, { type: 'triangle', gain: 0.18, when: 0.05 }); },
   tick() { tone(1250, 0.03, { type: 'square', gain: 0.07 }); },
   hurry() { tone(1650, 0.05, { type: 'square', gain: 0.1 }); },

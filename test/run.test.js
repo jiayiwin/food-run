@@ -1,13 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeRng } from '../js/core/rng.js';
-import { planCourse, checkSpacing, slotWindow } from '../js/game/course.js';
+import { planCourse, checkSpacing, slotWindow, courseBlocks } from '../js/game/course.js';
 import { makeRun, updateRun } from '../js/game/run.js';
 import { makeBot, simulate } from '../js/game/bot.js';
 import { judge } from '../js/game/choice.js';
 import { COURSE } from '../js/data/tune.js';
 import { OBSTACLES } from '../js/data/obstacles.js';
 import { NPCS, MOM } from '../js/data/npcs.js';
+import { say } from '../js/data/address.js';
 
 const SEEDS = [1, 2, 3, 42, 777, 2026, 31337, 99991];
 const play = (seed, botOpts, runOpts = {}) => {
@@ -16,7 +17,7 @@ const play = (seed, botOpts, runOpts = {}) => {
   return { run, res: simulate(run, makeBot({ rng, ...botOpts }), { update: updateRun }) };
 };
 
-test('路线：相邻障碍满足反应时间间距，读题窗口里没有障碍', () => {
+test('路线：相邻障碍满足反应时间间距，读题窗口、路口窗口、电梯 / 楼梯分支区里没有主路线的障碍', () => {
   for (const seed of SEEDS) {
     const c = planCourse(makeRng(seed));
     assert.deepEqual(checkSpacing(c.obstacles), [], `种子 ${seed}`);
@@ -25,21 +26,26 @@ test('路线：相邻障碍满足反应时间间距，读题窗口里没有障�
       const inside = c.obstacles.filter(o => o.x + OBSTACLES[o.type].w > a && o.x < b);
       assert.equal(inside.length, 0, `种子 ${seed} 槽 ${slot.x} 窗口里有障碍`);
     }
-    assert.ok(c.obstacles.length > 90, `障碍太少：${c.obstacles.length}`);
+    for (const [a, b] of courseBlocks()) assert.equal(c.obstacles.filter(o => o.x + OBSTACLES[o.type].w > a && o.x < b).length, 0, `种子 ${seed} 区间 ${Math.round(a)}–${Math.round(b)} 里有障碍`);
+    assert.ok(c.obstacles.length > 80, `障碍太少：${c.obstacles.length}`);   // 3 个路口窗口里不放障碍（约 2900px），比没有路口时少 4 个左右
   }
 });
 
-test('文案长度：台词 ≤14 字，选项 ≤8 字；家门口台词 ≤6、选项 ≤4', () => {
-  for (const [id, n] of Object.entries(NPCS)) {
-    for (const q of n.questions) {
-      assert.ok([...q.line].length <= 14, `${id} 台词过长：${q.line}`);
-      for (const o of q.opts) assert.ok([...o.text].length <= 8, `${id} 选项过长：${o.text}`);
+test('文案长度：台词 ≤14 字，选项 ≤8 字；家门口台词 ≤6、选项 ≤4、反应 ≤14（男 / 女主角两套称呼都算）', () => {
+  for (const g of ['m', 'f']) {
+    const n_ = s => [...say(s, g)].length;
+    for (const [id, n] of Object.entries(NPCS)) {
+      for (const q of n.questions) {
+        assert.ok(n_(q.line) <= 14, `${g} ${id} 台词过长：${say(q.line, g)}`);
+        for (const o of q.opts) { assert.ok(n_(o.text) <= 8, `${g} ${id} 选项过长：${say(o.text, g)}`); assert.ok(n_(o.react) <= 14, `${g} ${id} 反应过长：${say(o.react, g)}`); }
+      }
+      for (const o of n.comebacks) assert.ok(n_(o.text) <= 8, `${g} ${id} 反击过长：${say(o.text, g)}`);
+      for (const s of [n.hi, n.caught]) assert.ok(n_(s) <= 14, `${g} ${id}：${say(s, g)}`);
     }
-    for (const o of n.comebacks) assert.ok([...o.text].length <= 8, `${id} 反击过长：${o.text}`);
-  }
-  for (const q of Object.values(MOM.questions)) {
-    assert.ok([...q.line].length <= 6, `妈妈台词过长：${q.line}`);
-    for (const o of q.opts) assert.ok([...o.text].length <= 4, `妈妈选项过长：${o.text}`);
+    for (const q of Object.values(MOM.questions)) {
+      assert.ok(n_(q.line) <= 6, `${g} 妈妈台词过长：${say(q.line, g)}`);
+      for (const o of q.opts) { assert.ok(n_(o.text) <= 4, `${g} 妈妈选项过长：${say(o.text, g)}`); assert.ok(n_(o.react) <= 14, `${g} 妈妈反应过长：${say(o.react, g)}`); }
+    }
   }
 });
 
@@ -67,9 +73,9 @@ test('完美操作：零碰撞、零被抓，平安到家', () => {
   }
 });
 
-test('干净地跑，就算每题都选错也一定甩得掉', () => {
+test('干净地跑，就算每题都选错、从不冲刺也一定甩得掉', () => {
   for (const seed of SEEDS) {
-    const { res } = play(seed, { skill: 1, choose: 'bad' });
+    const { res } = play(seed, { skill: 1, choose: 'bad', dash: false });
     assert.ok(res && res.win, `种子 ${seed}：${res && res.reason}`);
     assert.equal(res.stats.caught, 0, `种子 ${seed} 被抓 ${res.stats.caught} 次`);
     assert.ok(res.stats.chased >= 6, `种子 ${seed} 只被追了 ${res.stats.chased} 次`);

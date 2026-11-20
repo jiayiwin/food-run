@@ -1,6 +1,6 @@
 // 无头 Chrome 截图 / 自动操作：在精确的手机视口里打开浏览器调试页，按脚本发触摸和按键，按时间点截图。
 //   node tools/shot.mjs <输出目录> [--w 390 --h 844 --dpr 2 --notch] [--url /dev/?seed=1] [--script steps.json]
-// steps.json：[{ "wait": 1000 }, { "key": "ArrowUp" }, { "swipe": "left" }, { "tap": [200, 600] }, { "shot": "名字" }, { "eval": "js" }]
+// steps.json：[{ "wait": 1000 }, { "key": "ArrowUp" }, { "swipe": "left" }, { "swipe": [28, -24] }, { "tap": [200, 600] }, { "shot": "名字" }, { "eval": "js" }]
 import { spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
@@ -52,7 +52,8 @@ await new Promise(r => setTimeout(r, 1200));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function touch(type, x, y) { await S('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] }); }
 async function swipe(dir, x = W / 2, y = H * 0.65) {
-  const d = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[dir];
+  // dir：'left' / 'right' / 'up' / 'down'（每步 20px），或 [dx, dy] 总位移（斜划，分 4 步走完）
+  const d = Array.isArray(dir) ? [dir[0] / 80, dir[1] / 80] : { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[dir];
   await touch('touchStart', x, y);
   for (let i = 1; i <= 4; i++) { await touch('touchMove', x + d[0] * 20 * i, y + d[1] * 20 * i); await sleep(16); }
   await touch('touchEnd', x, y);
